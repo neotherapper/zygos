@@ -35,3 +35,20 @@ for either:
 
 Confirming a SHA resolves confirms the *coordinate*, not the *content* — still read the file at that
 pin before citing anything from it, per rule 1.
+
+## Prep notes for Temper (leads, not findings — verify before use)
+
+- Don't stop at the README. `docs/PAPER.md` (~78KB) and `docs/POSITIONING.md` (~14KB) exist at the
+  pinned SHA and are unread as of this note. The verification cascade is likely specified there, not
+  in the README's collapsed summary — for the one project on the list whose entire pitch is
+  verification, a README-only Verification section would be thin.
+- The README carries an explicit "What Temper is and is not" table — four rows, each naming something
+  it is not and why. Good raw material for `Boundaries`; check it's still current at the pinned SHA.
+- Two watch-for claims in the README, precise and self-sourced, no artifact behind either as read:
+  *"Runs on every build, in well under a second on a small spec"* and *"Deployed on Railway; Katagami
+  runs on it in production."* Quote and attribute as the project's own claim, or omit — do not let the
+  precision read as verified.
+- **Prediction to test, not assume:** the README says nothing about token/cost behavior. If Economics
+  comes back empty for Temper too (exo already did), that's either a real finding about the field or
+  evidence the section doesn't belong in the format — two specs is enough to start telling which,
+  one wasn't.
