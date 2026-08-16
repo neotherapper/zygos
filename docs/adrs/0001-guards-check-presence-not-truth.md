@@ -68,6 +68,12 @@ and say so in the design document itself rather than leaving it implicit:
 - It gives a concrete target if zygos ever gets a runtime under it: build the left column first,
   because it is tractable, and do not claim the right column is covered by doing so.
 
+**Update, ADR-0002.** zygos is building that runtime. The `SubmitForReview` guard specified there checks
+exactly this ADR's left column — no more, no less; the right column still routes to an automated
+fidelity-review job, not to the guard. When Phase 1 ships, the "no runtime under it in v1" line in
+Context above becomes historical rather than current — left as written, since it was true when written,
+rather than edited to read as though this ADR anticipated its own supersession.
+
 **Negative**
 
 - Every field in v1 is still author-asserted, exactly as in the discipline zygos inherits. Naming what
