@@ -17,7 +17,7 @@ reuse) drawn from two dsh design notes read directly, not yet backed by a spec. 
 section is that backing — it either confirms R8 or kills it. Read the compaction/caching material with
 that question open, not as a general pass.
 
-`best-of-Agent-Harnesses` is a discovery source for future targets, not a subject of its own record —
+`best-of-Agent-Harnesses` is a discovery source for future targets, not a subject of its own spec —
 see `DESIGN.md` §3 (Non-Goals: breadth).
 
 ## Pinned commits for the next three specs

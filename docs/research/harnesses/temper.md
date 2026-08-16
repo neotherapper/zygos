@@ -13,7 +13,7 @@ provenance: primary
 verified_at: 2026-08-16
 axis: [A]                           # A — prevention-primary, with a live rollback backstop. See "Which axis"
 primitives: [capability, spec, actor, event-journal, transition-table, cedar-policy, pending-decision, o-p-a-d-i-record, trajectory, gepa]
-embodiment: none                    # no hands-on run — see "Embodiment" and "Limits of this record"
+embodiment: none                    # no hands-on run — see "Embodiment" and "Limits of this spec"
 ---
 
 # Temper
@@ -105,7 +105,7 @@ optimizer actors propose changes tiered by risk — `Risk::None` auto-approved, 
 only above a stated 10% estimated-improvement threshold, `Risk::Medium` *"never auto-approved"* and
 routed through shadow testing first (see Verification).
 
-**The hot-swap step of that loop has a fifth stage this record initially missed.** `docs/AGENT_GUIDE.md`
+**The hot-swap step of that loop has a fifth stage this spec initially missed.** `docs/AGENT_GUIDE.md`
 §12 states the Tier-2 (interpretable) hot-swap protocol as five steps, not the three (verify → shadow
 test → swap) visible from `docs/PAPER.md` alone: *"1. Agent generates new TransitionTable from modified
 spec. 2. Verification cascade runs on new table. 3. Shadow test: compare old and new tables on test
@@ -126,7 +126,7 @@ side effects deferred to the outbox pattern described in Loop — network calls 
 of guard evaluation and effect application.
 
 **What survives what.** Temper has no single named "reset" primitive the way exo has sandbox rewind;
-the closest analogue is process/actor restart, and the record is explicit about the boundary:
+the closest analogue is process/actor restart, and the spec is explicit about the boundary:
 
 | State category | Survives actor crash / process restart? |
 |---|---|
@@ -160,7 +160,7 @@ variable and finds nothing happens.
 | Method | Present? | Notes |
 |---|---|---|
 | Observability-driven feedback | **Yes, gated** | GEPA replays trajectories, proposes spec diffs via the O-P-A-D-I chain — but a destructive diff requires a human D-Record before it deploys. Non-destructive optimizer output is gated by risk tier and a `SafetyChecker`, not applied unconditionally |
-| Shadow evaluation | **Yes, gates a hot-swap** | `shadow_test` runs a suite of test cases against *both* the old and new `TransitionTable` before a Tier-3 overlay swap; any mismatch is a `Mismatch`, and the swap proceeds *"only if the `ShadowResult` reports zero mismatches (or the mismatches are explicitly expected)."` This is the exact "canary path — run the changed build against a clone and compare before adopting on the live instance" that exo's own record names as a gap it doesn't have |
+| Shadow evaluation | **Yes, gates a hot-swap** | `shadow_test` runs a suite of test cases against *both* the old and new `TransitionTable` before a Tier-3 overlay swap; any mismatch is a `Mismatch`, and the swap proceeds *"only if the `ShadowResult` reports zero mismatches (or the mismatches are explicitly expected)."` This is the exact "canary path — run the changed build against a clone and compare before adopting on the live instance" that exo's own spec names as a gap it doesn't have |
 | Deterministic simulation testing | **Yes, gates** | Level 2 of the cascade: seeded xorshift64 PRNG, a tick-based `SimScheduler`, three fault profiles (`none`/`light`/`heavy` — up to 30% delay, 5% drop, 2% crash). Reproducible by seed. Runs pre-deploy as part of the cascade, and separately as the project's own *development* methodology (DST-first, per the dev-harness docs) |
 | Formal specification | **Yes, gates** | Level 0 (Z3 SMT: guard satisfiability, invariant induction, unreachable-state detection) and Level 1 (Stateright: exhaustive BFS over the bounded state space, safety + liveness properties, counterexample traces) |
 
@@ -171,7 +171,7 @@ blocking pre-commit-style hook, `ALL FOUR must pass → Edit allowed / ANY failu
 too, but `docs/HARNESS.md` scopes it explicitly to *"agents developing Temper itself (the framework)"*;
 an agent building an app *on* Temper gets the `temper serve`/`temper verify` gate by default and this
 stricter hook only if `temper init` scaffolds it in. Stating "enforced twice" without that scope
-distinction overstates what a typical Temper user actually has — corrected here after the record's own
+distinction overstates what a typical Temper user actually has — corrected here after the spec's own
 Limits section flagged the risk in the abstract without carrying it into this section's body, which is
 exactly the gap a fidelity pass exists to catch. Shadow testing gates the hot-swap path for non-cascade
 tuning changes, and — per the fifth hot-swap step surfaced in Loop — a live rollback gates *after* the
@@ -187,13 +187,13 @@ instance of the same pattern operating *after* a change has already shipped.
 ## Which axis
 
 **Axis A — prevention-primary, with recovery layered under it at two different levels, not one.** An
-earlier draft of this record claimed Temper offers "no recovery for a bad spec, only for infrastructure
+earlier draft of this spec claimed Temper offers "no recovery for a bad spec, only for infrastructure
 crashes" — that claim did not survive fidelity review. `docs/AGENT_GUIDE.md` §12 documents an
 automatic-rollback step in the hot-swap protocol itself (see Loop): if a `TransitionTable` that already
 passed the verification cascade *and* shadow testing still degrades production after being swapped in,
 the rollback is automatic, not human-gated. That is genuine recovery at the spec/behavior layer, not
 only at the infrastructure layer — the finding is more interesting than the clean "opposite of exo"
-story this record started with.
+story this spec started with.
 
 | | Prevents entering a broken state | Restores from a broken state |
 |---|---|---|
@@ -213,8 +213,8 @@ production despite passing every pre-ship gate, and event replay for infrastruct
 to spec correctness. Neither substitutes for the cascade; both catch what the cascade structurally
 cannot (real production behavior in the first case, process failure in the second).
 
-This still bears on the open question pavlos's own research raised across records — are prevention and
-recovery opposed, or complementary? — but the answer this record now supports is narrower and more
+This still bears on the open question pavlos's own research raised across specs — are prevention and
+recovery opposed, or complementary? — but the answer this spec now supports is narrower and more
 interesting than "opposed, at different layers": Temper demonstrates prevention and recovery
 **composed within a single change path**, with recovery scoped tightly to the residual risk that
 prevention's own instruments (a necessarily finite test suite) cannot close. That composition, not a
@@ -229,7 +229,7 @@ built entirely on a false premise, and nothing in the read material would notice
 
 ## Economics
 
-More present than exo's record, but not where the format's default question points, and that
+More present than exo's spec, but not where the format's default question points, and that
 distinction is the finding. **Nothing in the material read discusses LLM prompt or token economics** —
 no prompt caching, no compaction strategy, no discussion of what fraction of a conversational turn is
 repeated prefix. Pavlos-init's prediction (Economics comes back empty a second time) is only half
@@ -288,7 +288,7 @@ gap specific to these two projects or absent from the field's early designs gene
 - Constrained expressiveness, named by the project itself: no floating-point state (prices live in
   payload, not state), no conditional effects without decomposing into guarded actions, no temporal
   guards without scheduled actions, single-node only. *"Some of these are fundamental to finite
-  automata. Others are engineering work"* — the record does not know which is which for any given
+  automata. Others are engineering work"* — the spec does not know which is which for any given
   future need.
 - An extra layer of indirection between intent and artifact. Specs are generated by a coding agent from
   conversation, not hand-authored — the opposite of exo's position, where the agent edits its own
@@ -364,24 +364,24 @@ gap specific to these two projects or absent from the field's early designs gene
   about this problem's shape; a different domain may not share them.
 - **Do not read the Economics section as "harnesses don't think about cost."** This spec's own finding
   is narrower: this harness has a real cost model, aimed at its own backend rather than at the LLM
-  conversation reaching it. Generalizing to "the field ignores economics" from two records is exactly
+  conversation reaching it. Generalizing to "the field ignores economics" from two specs is exactly
   the kind of unsupported leap `DESIGN.md` warns against — see Limits.
 
 ## Embodiment
 
-`embodiment: none`. Temper was not installed or run; nothing here is this record's own behavioral
+`embodiment: none`. Temper was not installed or run; nothing here is this spec's own behavioral
 evidence. Unlike exo, though, the project's own material includes a real, methodologically-disclosed
 evaluation: Criterion benchmarks (100 samples) for the transition-table hot path (28ns–16μs range) and
 full-stack agent-checkout latency (461μs in-memory; 17.7ms with Postgres persistence, ~2,200 persisted
 actions/sec at 100 concurrent checkouts), 22 named DST tests including two determinism-reproducibility
 proofs across ten runs, and three specific guard-resolution bugs the project's own DST-first process
-caught before they would have shipped. That is stronger evidentiary standing than exo's record had —
+caught before they would have shipped. That is stronger evidentiary standing than exo's spec had —
 but it is still the project's own reported results, not independently reproduced here, and is recorded
 as such rather than as this spec's own finding. Per `DESIGN.md` §4.3, Embodiment stays optional until
 four or more specs exist in the library or a claim here depends on a run to confirm; neither condition
 is met.
 
-## Limits of this record
+## Limits of this spec
 
 - **Source read, code not read.** Every claim comes from `README.md`, `docs/PAPER.md` (read in full),
   `docs/POSITIONING.md` (read in full), and the sections of `docs/AGENT_GUIDE.md` covering core
@@ -390,11 +390,11 @@ is met.
   that produced exo's central finding — is unchecked here.
 
 - **181 ADR files under `docs/adrs/` (159 unique numbers — 21 numbers are reused across 2–3 files each;
-  highest number 0165) were not read individually.** An earlier draft of this record stated "165 ADRs,"
+  highest number 0165) were not read individually.** An earlier draft of this spec stated "165 ADRs,"
   mistaking the highest ADR *number* for a file *count* — caught by fidelity review, corrected here.
   Only filenames were scanned from the repository tree to confirm nothing load-bearing was missed at the
   top level. Any single ADR could sharpen, qualify, or contradict a claim synthesized here from
-  `PAPER.md` — the same category of risk exo's record flagged for its own unread design-note files, at
+  `PAPER.md` — the same category of risk exo's spec flagged for its own unread design-note files, at
   much larger scale.
 
 - **`docs/HARNESS.md` describes Temper's own development harness — the dev-time hooks and gates for
@@ -415,27 +415,27 @@ is met.
   evidentiary standing the project's own disclosed benchmarks do and don't provide in place of one.
 
 - **`lifecycle: version-changing`** on the project's own statement that *"the API surface is not
-  frozen"* at 0.1.0, with an explicit "cannot do this yet" list the project expects to shrink. A record
+  frozen"* at 0.1.0, with an explicit "cannot do this yet" list the project expects to shrink. A spec
   written against `2f43ece` should be assumed to drift, plausibly faster than exo's given the number of
   documents (600+) actively tracking design decisions in this repository.
 
 - **Compared to exo, once, by me — not adjudicated by a third source.** The prevention-vs-recovery
   contrast and the "same artifact serves two roles" parallel to "the log is the program" are this
-  record's own synthesis, built from having read both records, not from any source that compares the
+  spec's own synthesis, built from having read both specs, not from any source that compares the
   two projects itself. Pavlos's own Q3 (are prevention and recovery opposed or complementary at
   different layers?) is addressed above with a specific answer, revised once already during this
-  record's own fidelity review: not cleanly "at different layers" but *composed within one change
+  spec's own fidelity review: not cleanly "at different layers" but *composed within one change
   path*, with recovery scoped to the named residual gap prevention's own instruments can't close. That
   answer rests on two data points (exo, Temper) and should be treated as a strong lead for the eventual
-  concept document, not as settled by this record alone — and the fact that it changed once already,
-  mid-record, is itself a reason for caution rather than confidence.
+  concept document, not as settled by this spec alone — and the fact that it changed once already,
+  mid-spec, is itself a reason for caution rather than confidence.
 
 - **Economics finding rests on absence, checked by keyword search plus targeted reads, not exhaustive
   reading.** "No LLM-token economics discussion" was confirmed by grep across `PAPER.md`,
   `AGENT_GUIDE.md`, and `HARNESS.md` for cost/cache/token/prefix/compaction terms, then read in context
   wherever a hit appeared. A discussion using none of those terms would not have been found this way.
 
-- **This record went through fidelity review before merge, and it changed a central claim.** A first
+- **This spec went through fidelity review before merge, and it changed a central claim.** A first
   draft misattributed three quotes to the wrong source file (two spliced `PAPER.md`+`POSITIONING.md`
   phrasing under a single citation, one cited `PAPER.md` for a sentence actually in `AGENT_GUIDE.md` §8,
   a section outside that draft's disclosed reading scope), swapped a 28ns figure for an unrelated 28μs
@@ -462,4 +462,4 @@ All fetched as raw markdown pinned to commit `2f43ecefaa00bf2e9d75c6b67c2ddf8857
 | Repository tree at `2f43ece` (GitHub API, recursive) | primary — used to enumerate docs and confirm the ADR file count (181 files, 159 unique numbers); ADR bodies not read | 2026-08-16 |
 
 **Cross-reference:** `docs/research/harnesses/exo.md` in this repository, read in full before this
-record was written, for every comparison drawn above.
+spec was written, for every comparison drawn above.

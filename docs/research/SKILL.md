@@ -58,7 +58,7 @@ answer in Sources even when it resolves in the file's favor — a reader shouldn
   loses the specific words a project chose, and those words are often the finding.
 - **Primitives.** One row per noun a user or agent actually manipulates, not per implementation detail.
   If a "why it matters" cell just restates the "what it is" cell, the primitive probably isn't pulling
-  weight in the record — cut it or dig for a sharper source line.
+  weight in the spec — cut it or dig for a sharper source line.
 - **Loop.** Identify how many distinct loops exist (a harness usually has more than one: a per-action
   loop, a per-change/deploy loop, sometimes an evolution/feedback loop) before writing prose. Naming them
   separately up front prevents them from blurring together in the write-up.
@@ -83,7 +83,7 @@ answer in Sources even when it resolves in the file's favor — a reader shouldn
 - **Embodiment.** `embodiment: none` is a fine answer in v1 — see `DESIGN.md` §4.3 for the promotion
   criterion. If the project discloses its own benchmarks with a stated method (sample count, tool name),
   that's real evidentiary standing worth recording even without a hands-on run — say so, and say clearly
-  that it's still not this record's own evidence.
+  that it's still not this spec's own evidence.
 
 ## 4. Fidelity review, before merge, not after
 
@@ -106,7 +106,7 @@ true — see `docs/adrs/0001-guards-check-presence-not-truth.md`. Before merging
 3. Post the findings as a PR comment, whatever the verdict. A clean pass is worth recording as evidence
    the process works; a NEEDS REVISION verdict is worth recording as evidence it caught something.
 4. Fix findings in the file itself, including a note in the spec's own Limits section about what changed
-   and why — the correction is part of the record, not a private cleanup. Merge only after the fixes are
+   and why — the correction is part of the spec, not a private cleanup. Merge only after the fixes are
    in and pushed.
 
 This step found real, load-bearing defects the one time it's been run so far (`temper.md`, PR #1) —

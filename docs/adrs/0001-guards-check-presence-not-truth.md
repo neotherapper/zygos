@@ -40,7 +40,7 @@ and say so in the design document itself rather than leaving it implicit:
 **Mechanically checkable, in principle, by a guard with no judgment:**
 
 - All required sections present and non-empty
-- `Limits of this record` present and non-empty
+- `Limits of this spec` present and non-empty
 - Frontmatter enum fields valid (`lifecycle`, `provenance`, `axis`, `kind`)
 - `artifact_url` matches a 40-hex commit SHA, not a branch ref
 - Every direct quote in the body carries a source anchor that resolves against an entry in the

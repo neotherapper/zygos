@@ -73,7 +73,7 @@ Where this design should not be ported, and who should not adopt it.
 A canonical task run on the installed harness, with a trace. `embodiment: none` in frontmatter is
 acceptable in v1 — do not fabricate a trace to fill this section; state the omission instead.
 
-## Limits of this record
+## Limits of this spec
 
 Mandatory, non-empty. What was not checked.
 
