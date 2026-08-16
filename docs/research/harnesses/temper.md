@@ -11,7 +11,7 @@ status: pre-release                 # project's own words: "Version 0.1.0... API
 lifecycle: version-changing
 provenance: primary
 verified_at: 2026-08-16
-axis: [A]                           # A, and — unlike exo — prevention, not only recovery. See "Which axis"
+axis: [A]                           # A — prevention-primary, with a live rollback backstop. See "Which axis"
 primitives: [capability, spec, actor, event-journal, transition-table, cedar-policy, pending-decision, o-p-a-d-i-record, trajectory, gepa]
 embodiment: none                    # no hands-on run — see "Embodiment" and "Limits of this record"
 ---
@@ -31,9 +31,11 @@ it for state machines."*
 The design explicitly borrows its shape from Von Neumann's 1949 universal-constructor argument: a
 *description* that encodes a blueprint, a *constructor* that builds whatever a description encodes
 without knowing in advance what that is, and evolution as changes to descriptions rather than to the
-constructor. `docs/PAPER.md` states the mapping directly: *"The kernel is the constructor... The kernel
-does not know whether you are building a project tracker or a deployment pipeline. It interprets
-whatever you feed it."* This is the same move exo makes at the exoharness/executor boundary — a
+constructor. `docs/PAPER.md` states the mapping directly: *"In Temper, the kernel is the constructor.
+It reads specifications and builds running systems from them."* `docs/POSITIONING.md` restates the same
+position with the sharper line: *"The kernel does not know whether you are building a project tracker
+or a deployment pipeline. It interprets whatever you feed it."* This is the same move exo makes at the
+exoharness/executor boundary — a
 generic, minimal, trusted layer that stays ignorant of the semantics running above it — arrived at from
 a different argument (proof tractability, not containment) and applied to a different kind of thing
 (a state-machine constructor, not an event-log substrate).
@@ -57,7 +59,7 @@ one actually holding.
 
 | Primitive | What it is | Why it matters |
 |---|---|---|
-| **Capability** | A verified, deployed description: natural-language description + agent guidance + one or more I/O Automaton specs + a CSDL data model + Cedar policies + integration declarations | The unit an agent operates through. `docs/PAPER.md` §3: *"The natural language description and guidance are what agents and humans read. The specifications are what the kernel verifies and executes"* — two audiences, one artifact |
+| **Capability** | A verified, deployed description: natural-language description + agent guidance + one or more I/O Automaton specs + a CSDL data model + Cedar policies + integration declarations | The unit an agent operates through. `docs/POSITIONING.md`: *"The natural language description and guidance are what agents and humans read. The specifications are what the kernel verifies and executes"* — two audiences, one artifact |
 | **Spec (IOA + CSDL + Cedar)** | Three declarative, non-imperative artifacts: I/O Automaton TOML (states/transitions/guards/invariants), CSDL XML (entity types, actions, relationships), Cedar (authorization policy) | *"Nothing in this layer is imperative code."* The spec is simultaneously the verification target and the runtime execution artifact — not two things kept in sync, one thing read two ways |
 | **Actor** | One lightweight, per-entity-instance process; messages handled strictly sequentially, no concurrent state access | *"if the transition table is correct and the initial state is valid, then every reachable state is valid"* — the sequential-consistency guarantee is what makes the proof apply to the running system, not just the model |
 | **Event journal + snapshot** | Every transition persisted as an event to Postgres; periodic snapshots bound replay time; compaction truncates events once the count since last snapshot exceeds a threshold | The durable record actor state rebuilds from on restart. Bounded by construction (TigerStyle), not by an operator remembering to prune |
@@ -79,9 +81,9 @@ mutates state and appends an event; `POST .../SubmitOrder` a second time from `S
 — the guard rejected it, not application code. Each call: Cedar authorizes (default-deny) → the
 `TransitionTable` checks the `from_states` guard and the semantic guard → effects apply → the event
 persists to Postgres → the `IntegrationEngine` dispatches any declared external side effects
-*asynchronously, after* the transition is committed — *"the outbox pattern ensures side effects cannot
-violate state machine invariants because they execute after the transition is persisted, not during
-guard evaluation."* Discovery is self-describing: an agent reads `$metadata` and gets the full typed
+*asynchronously, after* the transition is committed — *"the outbox pattern ensures that side effects
+cannot violate state machine invariants because they execute after the transition is persisted, not
+during guard evaluation or effect application."* Discovery is self-describing: an agent reads `$metadata` and gets the full typed
 surface, including `Agent.Hint` and `Agent.SuccessRate` annotations populated from trajectory data —
 no external documentation required, by the CSDL layer's own design intent.
 
@@ -95,12 +97,20 @@ runtime"*).
 
 **Evolution loop (production feeds the next spec).** A sentinel actor observes an anomaly →
 O-Record → P-Record (formal problem statement) → A-Record (solution options with a spec diff and risk
-level) → D-Record (human approval, required for anything that *"alters state machine invariants,
-removes entity types, or modifies Cedar policies"*) → deploy through the same verification cascade.
+level) → D-Record (human approval, required for what the project calls "destructive changes" —
+*"those that alter state machine invariants, remove entity types, or modify Cedar policies"*) → deploy
+through the same verification cascade.
 Non-destructive tuning (query plans, cache TTLs, shard placement) runs a separate, faster loop: three
 optimizer actors propose changes tiered by risk — `Risk::None` auto-approved, `Risk::Low` auto-approved
 only above a stated 10% estimated-improvement threshold, `Risk::Medium` *"never auto-approved"* and
 routed through shadow testing first (see Verification).
+
+**The hot-swap step of that loop has a fifth stage this record initially missed.** `docs/AGENT_GUIDE.md`
+§12 states the Tier-2 (interpretable) hot-swap protocol as five steps, not the three (verify → shadow
+test → swap) visible from `docs/PAPER.md` alone: *"1. Agent generates new TransitionTable from modified
+spec. 2. Verification cascade runs on new table. 3. Shadow test: compare old and new tables on test
+cases. 4. If shadow test passes: SwapController.swap(new_table). 5. If production degrades: automatic
+rollback."* Step 5 matters more than its one line suggests — see Which axis.
 
 ## Boundaries
 
@@ -155,39 +165,60 @@ variable and finds nothing happens.
 | Formal specification | **Yes, gates** | Level 0 (Z3 SMT: guard satisfiability, invariant induction, unreachable-state detection) and Level 1 (Stateright: exhaustive BFS over the bounded state space, safety + liveness properties, counterexample traces) |
 
 **What gates vs what reports, stated precisely.** All four cascade levels (L0–L3) must pass before a
-spec deploys — enforced twice: as a blocking pre-commit-style hook during development (`ALL FOUR must
-pass → Edit allowed / ANY failure → Edit BLOCKED`) and again at the platform boundary (`temper serve`
-rejects invalid specs at startup, never loads them). Shadow testing gates the separate hot-swap path
-for non-cascade tuning changes. The human D-Record gate covers the fourth path (evolution-proposed
-destructive changes). The only reporting-only mechanism is trajectory telemetry itself — it feeds
-`Agent.Hint`/`Agent.SuccessRate` annotations and the GEPA's proposals, but a proposal is not an applied
-change; something downstream always gates it. Measured against exo's profile — instrumentation genuinely
-good, but *"the agent closes the loop... nothing acts on a signal automatically"* — Temper's default is
-inverted: the mechanism, not the agent's judgment, is what applies or blocks a change.
+spec deploys — enforced at the platform boundary for every user (`temper serve` runs the cascade at
+startup and rejects invalid specs, never loading them). A second, stricter enforcement point — a
+blocking pre-commit-style hook, `ALL FOUR must pass → Edit allowed / ANY failure → Edit BLOCKED` — exists
+too, but `docs/HARNESS.md` scopes it explicitly to *"agents developing Temper itself (the framework)"*;
+an agent building an app *on* Temper gets the `temper serve`/`temper verify` gate by default and this
+stricter hook only if `temper init` scaffolds it in. Stating "enforced twice" without that scope
+distinction overstates what a typical Temper user actually has — corrected here after the record's own
+Limits section flagged the risk in the abstract without carrying it into this section's body, which is
+exactly the gap a fidelity pass exists to catch. Shadow testing gates the hot-swap path for non-cascade
+tuning changes, and — per the fifth hot-swap step surfaced in Loop — a live rollback gates *after* the
+swap too, if production degrades post-swap despite passing both the cascade and shadow test. The human
+D-Record gate covers the remaining path (evolution-proposed destructive changes). The only reporting-only
+mechanism is trajectory telemetry itself — it feeds `Agent.Hint`/`Agent.SuccessRate` annotations and the
+GEPA's proposals, but a proposal is not an applied change; something downstream always gates it. Measured
+against exo's profile — instrumentation genuinely good, but *"the agent closes the loop... nothing acts
+on a signal automatically"* — Temper's default is inverted: the mechanism, not the agent's judgment, is
+what applies or blocks a change, and now — per the correction above — automatic rollback is one more
+instance of the same pattern operating *after* a change has already shipped.
 
 ## Which axis
 
-**Axis A, and it is prevention, not recovery** — the polar opposite of exo's profile.
+**Axis A — prevention-primary, with recovery layered under it at two different levels, not one.** An
+earlier draft of this record claimed Temper offers "no recovery for a bad spec, only for infrastructure
+crashes" — that claim did not survive fidelity review. `docs/AGENT_GUIDE.md` §12 documents an
+automatic-rollback step in the hot-swap protocol itself (see Loop): if a `TransitionTable` that already
+passed the verification cascade *and* shadow testing still degrades production after being swapped in,
+the rollback is automatic, not human-gated. That is genuine recovery at the spec/behavior layer, not
+only at the infrastructure layer — the finding is more interesting than the clean "opposite of exo"
+story this record started with.
 
 | | Prevents entering a broken state | Restores from a broken state |
 |---|---|---|
-| exo | no | yes, by construction |
-| Temper | **yes, for specs — proof before deploy** | yes, but only for infrastructure crashes (event replay), not for a bad spec |
+| exo | no | yes, by construction — the only mechanism it has |
+| Temper | yes, primary mechanism — proof + shadow test before a swap ships | yes, but as a **backstop for what proof and shadow-testing miss**, not the primary safety mechanism |
 
-The proof is the load-bearing claim: *"You can prove, before anything runs, that every rule is
-satisfiable, every constraint holds across all reachable statuses, and no failure scenario violates the
-contract."* A spec that fails any cascade level is never loaded into the runtime — there is no "broken
-spec state" to recover from, because it never reaches a state where it could enter one. Where Temper
-*does* offer recovery is a different, narrower layer entirely: actor state after a process crash,
-rebuilt from the event journal. That recovery mechanism says nothing about whether the spec being
-recovered is *correct* — it only guarantees the actor comes back to its last committed, already-verified
-state.
+The proof is still the load-bearing primary claim: *"You can prove, before anything runs, that every
+rule is satisfiable, every constraint holds across all reachable statuses, and no failure scenario
+violates the contract."* Most of what would be a broken state never ships, because the cascade and the
+shadow test catch it first. But "most" is doing real work in that sentence — shadow testing runs a
+*fixed suite of test cases*, not the full space of production traffic, so a `TransitionTable` can pass
+every gate and still misbehave against inputs the suite didn't anticipate. Step 5 of the hot-swap
+protocol exists for exactly that residual gap. Separately, and at a different layer again, actor state
+after a *process* crash (as opposed to a bad spec) recovers by event-journal replay — see Boundaries.
+So Temper actually has recovery at two distinct points: a live rollback for a spec that degrades
+production despite passing every pre-ship gate, and event replay for infrastructure crashes unrelated
+to spec correctness. Neither substitutes for the cascade; both catch what the cascade structurally
+cannot (real production behavior in the first case, process failure in the second).
 
-This is direct evidence toward the open question pavlos's own research raised across records: are
-prevention and recovery opposed, or complementary at different layers? Temper's own architecture answers
-it by example rather than argument — prevention operates on the spec/behavior layer, recovery operates
-on the process/infrastructure layer, and the two never substitute for each other because they answer
-different questions ("is this contract sound?" vs. "did this process survive?").
+This still bears on the open question pavlos's own research raised across records — are prevention and
+recovery opposed, or complementary? — but the answer this record now supports is narrower and more
+interesting than "opposed, at different layers": Temper demonstrates prevention and recovery
+**composed within a single change path**, with recovery scoped tightly to the residual risk that
+prevention's own instruments (a necessarily finite test suite) cannot close. That composition, not a
+clean prevention/recovery split, is the more transferable finding — see What to steal.
 
 **Axis B is absent and undiscussed, same as exo.** Nothing in the material read evaluates whether a
 capability's data — an order total, a payment status, a claim an agent's application logic asserts about
@@ -210,10 +241,10 @@ right, and the half that's wrong is informative:
   aimed at Temper's own backend (Postgres queries, cache TTLs), not at the token cost of the agent
   conversation reaching it.
 - **Telemetry cardinality has an explicit, named cost-decoupling design.** §9.4 of `docs/PAPER.md`:
-  treating `entity_id` as an Attribute rather than a Tag by default is *"zero cost — not a metric tag,
-  no cardinality explosion"* — promotable to a Tag at runtime *"if [an operator] decides the cost is
-  worth it."* Cost is a first-class, deferred decision here, just not an LLM-token one.
-  ​
+  treating `entity_id` as an Attribute rather than a Tag by default means an operator *"can promote an
+  Attribute to a Tag at runtime if they decide the cost is worth it for a specific investigation."*
+  `docs/AGENT_GUIDE.md` §8 states the same design more tersely: *"zero cost — not a metric tag, no
+  cardinality explosion."* Cost is a first-class, deferred decision here, just not an LLM-token one.
 - **Trajectory records carry `token count` as a field** — but as a *telemetry signal* feeding agent-hint
   and API-shape optimization (§7.2), not as an input to any caching, compaction, or spend-reduction
   mechanism. The number is observed, not acted on for cost.
@@ -248,6 +279,9 @@ gap specific to these two projects or absent from the field's early designs gene
   conventionally discouraged.
 - Same artifact, two roles. The struct the cascade verifies is the struct the runtime executes — not
   two implementations kept in sync by discipline.
+- A live rollback backstop scoped to exactly the residual risk proof and shadow-testing can't close.
+  Automatic, not human-gated, and only for the narrow case where a change already passed every pre-ship
+  gate — see Which axis.
 
 **Pays**
 
@@ -261,8 +295,11 @@ gap specific to these two projects or absent from the field's early designs gene
   harness directly. Faster iteration requires trusting the generation step, which sits outside anything
   the cascade verifies (the cascade checks the spec, not the conversation that produced it).
 - Real latency cost from durability. Postgres event append dominates end-to-end latency at ~1.4ms per
-  action, roughly 50× the in-memory actor dispatch path (~28ns) — the tradeoff of durability-first
-  design made visible in the project's own benchmarks, not hidden.
+  action, roughly 50× the in-memory actor dispatch path (~28μs) — the tradeoff of durability-first
+  design made visible in the project's own benchmarks, not hidden. (A separate, much faster figure in
+  the same benchmark suite — the `evaluate_ctx()` hot path at ~28ns — is the cost of a single guard
+  check in isolation, not the dispatch path this ratio is measured against; the two numbers are easy to
+  conflate because they're both "28" and both from the same table.)
 - The pitched conversational experience — *"you describe what you want, the system builds it"* — is
   explicitly *"partially implemented"* and *"dependent on the coding agent of choice."* Today's actual
   path is closer to a coding agent authoring specs on a developer's behalf than to a from-scratch
@@ -299,6 +336,13 @@ gap specific to these two projects or absent from the field's early designs gene
    findings a reader has to reconcile. Same discipline exo's state-inventory table applies to its one
    non-surviving row — worth treating as a convention, not a coincidence, now that two independent
    projects do it.
+
+6. **Scope a recovery mechanism to the specific gap your prevention mechanism can't close, instead of
+   treating prevention and recovery as a binary choice.** Temper's automatic rollback doesn't compensate
+   for a weak cascade — it exists because a shadow test's suite is necessarily finite while production
+   traffic isn't, and that specific, named gap is what triggers it. A recovery mechanism with no stated
+   scope tends toward becoming the *real* safety mechanism by default, quietly displacing the prevention
+   work it was meant to backstop; naming the gap precisely is what keeps that from happening.
 
 ## What not to
 
@@ -341,15 +385,17 @@ is met.
 
 - **Source read, code not read.** Every claim comes from `README.md`, `docs/PAPER.md` (read in full),
   `docs/POSITIONING.md` (read in full), and the sections of `docs/AGENT_GUIDE.md` covering core
-  concepts, verification, and anti-patterns. The Rust implementation itself was not read. Whether the
-  code matches the documentation — the same question that produced exo's central finding — is unchecked
-  here.
+  concepts, observability, JIT optimization, and anti-patterns (§1, §8, §12, §16). The Rust
+  implementation itself was not read. Whether the code matches the documentation — the same question
+  that produced exo's central finding — is unchecked here.
 
-- **165 ADRs under `docs/adrs/` were not read individually.** Only filenames were scanned from the
-  repository tree to confirm nothing load-bearing was missed at the top level (e.g., confirming
-  verification-cascade and DST-related ADR numbers exist). Any single ADR could sharpen, qualify, or
-  contradict a claim synthesized here from `PAPER.md` — the same category of risk exo's record flagged
-  for its own unread design-note files, at much larger scale.
+- **181 ADR files under `docs/adrs/` (159 unique numbers — 21 numbers are reused across 2–3 files each;
+  highest number 0165) were not read individually.** An earlier draft of this record stated "165 ADRs,"
+  mistaking the highest ADR *number* for a file *count* — caught by fidelity review, corrected here.
+  Only filenames were scanned from the repository tree to confirm nothing load-bearing was missed at the
+  top level. Any single ADR could sharpen, qualify, or contradict a claim synthesized here from
+  `PAPER.md` — the same category of risk exo's record flagged for its own unread design-note files, at
+  much larger scale.
 
 - **`docs/HARNESS.md` describes Temper's own development harness — the dev-time hooks and gates for
   people building Temper itself — not what an agent gets when building *on* Temper.** ~200 of 610 lines
@@ -377,14 +423,29 @@ is met.
   contrast and the "same artifact serves two roles" parallel to "the log is the program" are this
   record's own synthesis, built from having read both records, not from any source that compares the
   two projects itself. Pavlos's own Q3 (are prevention and recovery opposed or complementary at
-  different layers?) is addressed above with a specific answer — complementary, at the spec layer vs.
-  the infrastructure layer — but that answer rests on two data points and should be treated as a strong
-  lead for the eventual concept document, not as settled by this record alone.
+  different layers?) is addressed above with a specific answer, revised once already during this
+  record's own fidelity review: not cleanly "at different layers" but *composed within one change
+  path*, with recovery scoped to the named residual gap prevention's own instruments can't close. That
+  answer rests on two data points (exo, Temper) and should be treated as a strong lead for the eventual
+  concept document, not as settled by this record alone — and the fact that it changed once already,
+  mid-record, is itself a reason for caution rather than confidence.
 
 - **Economics finding rests on absence, checked by keyword search plus targeted reads, not exhaustive
   reading.** "No LLM-token economics discussion" was confirmed by grep across `PAPER.md`,
   `AGENT_GUIDE.md`, and `HARNESS.md` for cost/cache/token/prefix/compaction terms, then read in context
   wherever a hit appeared. A discussion using none of those terms would not have been found this way.
+
+- **This record went through fidelity review before merge, and it changed a central claim.** A first
+  draft misattributed three quotes to the wrong source file (two spliced `PAPER.md`+`POSITIONING.md`
+  phrasing under a single citation, one cited `PAPER.md` for a sentence actually in `AGENT_GUIDE.md` §8,
+  a section outside that draft's disclosed reading scope), swapped a 28ns figure for an unrelated 28μs
+  figure in a latency ratio, miscounted the ADR total, and — the load-bearing one — claimed no recovery
+  mechanism exists for a spec that already passed the cascade and shadow test, when `AGENT_GUIDE.md` §12
+  documents exactly that mechanism (the automatic-rollback step). All of the above are corrected in this
+  version. This is recorded here deliberately: a presence-checking guard (zygos ADR-0001) would have
+  passed the first draft outright — every section was filled, every field populated, nothing missing.
+  Only re-reading the same primary sources with intent to refute caught the actual defects. That is the
+  argument for the fidelity pass being load-bearing, made concrete rather than asserted.
 
 ## Sources
 
@@ -396,9 +457,9 @@ All fetched as raw markdown pinned to commit `2f43ecefaa00bf2e9d75c6b67c2ddf8857
 | [`README.md`](https://github.com/nerdsane/temper/blob/2f43ecefaa00bf2e9d75c6b67c2ddf8857821400/README.md) | primary — project self-description, full read | 2026-08-16 |
 | [`docs/PAPER.md`](https://github.com/nerdsane/temper/blob/2f43ecefaa00bf2e9d75c6b67c2ddf8857821400/docs/PAPER.md) | primary — full architecture paper, full read (all 12 sections) | 2026-08-16 |
 | [`docs/POSITIONING.md`](https://github.com/nerdsane/temper/blob/2f43ecefaa00bf2e9d75c6b67c2ddf8857821400/docs/POSITIONING.md) | primary — positioning statement, full read | 2026-08-16 |
-| [`docs/AGENT_GUIDE.md`](https://github.com/nerdsane/temper/blob/2f43ecefaa00bf2e9d75c6b67c2ddf8857821400/docs/AGENT_GUIDE.md) | primary — sections 1 (Core Concepts) and 16 (Anti-Patterns) read; remainder scanned by heading only | 2026-08-16 |
+| [`docs/AGENT_GUIDE.md`](https://github.com/nerdsane/temper/blob/2f43ecefaa00bf2e9d75c6b67c2ddf8857821400/docs/AGENT_GUIDE.md) | primary — §1 Core Concepts, §8 Observability, §12 JIT Optimization, §16 Anti-Patterns read (§8 and §12 added after fidelity review; remainder scanned by heading only) | 2026-08-16 |
 | [`docs/HARNESS.md`](https://github.com/nerdsane/temper/blob/2f43ecefaa00bf2e9d75c6b67c2ddf8857821400/docs/HARNESS.md) | primary — first ~200 of 610 lines read; this is Temper's own dev-time harness, not the product's agent-facing surface — see Limits | 2026-08-16 |
-| Repository tree at `2f43ece` (GitHub API, recursive) | primary — used to enumerate docs and confirm the 165-ADR count; ADR bodies not read | 2026-08-16 |
+| Repository tree at `2f43ece` (GitHub API, recursive) | primary — used to enumerate docs and confirm the ADR file count (181 files, 159 unique numbers); ADR bodies not read | 2026-08-16 |
 
 **Cross-reference:** `docs/research/harnesses/exo.md` in this repository, read in full before this
 record was written, for every comparison drawn above.
