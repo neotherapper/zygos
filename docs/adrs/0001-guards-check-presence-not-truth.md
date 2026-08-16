@@ -34,7 +34,7 @@ exist to catch: precision that reads as verification without being verification.
 
 ## Decision
 
-Classify every field and section in the zygos spec format (`DESIGN.md` §4) into one of two categories,
+Classify every field and section in the zygos spec format (`FORMAT.md` §4) into one of two categories,
 and say so in the design document itself rather than leaving it implicit:
 
 **Mechanically checkable, in principle, by a guard with no judgment:**
@@ -58,7 +58,7 @@ and say so in the design document itself rather than leaving it implicit:
 
 **Positive**
 
-- The schema (`DESIGN.md` §4–§5) states its own ceiling. A reader — or a future implementer building
+- The schema (`FORMAT.md` §4–§5) states its own ceiling. A reader — or a future implementer building
   an actual guard on top of this format — knows in advance which half of quality control a machine
   check could ever cover.
 - It prevents the format from silently promising what katagami's presence-guard already doesn't
@@ -97,7 +97,7 @@ one level up.
   a human author can apply by hand. Rejected: a human choosing to follow a rule is a convention, and
   pavlos's own ADR-0001 already establishes why a convention doesn't reliably catch what a mechanical
   check would — "cite your sources" is advice a writer under time pressure can satisfy in appearance.
-- **Wait until a runtime exists under zygos to write this down.** Rejected: the schema in `DESIGN.md`
+- **Wait until a runtime exists under zygos to write this down.** Rejected: the schema in `FORMAT.md`
   §4 is being fixed now, across the first several specs; retrofitting a presence/judgment split onto an
   existing set of fields is a bigger change than designing the fields with the split in mind from spec
   one.

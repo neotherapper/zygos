@@ -1,4 +1,4 @@
-# zygos — Design Document
+# zygos — Format
 
 **A library of complete AI agent harness specifications, researched and maintained by agents.**
 
@@ -148,7 +148,8 @@ export is authored by hand in v1 — see §4.3.
 ### 4.2 Why this differs from katagami's language spec
 
 Katagami's format — Philosophy / Tokens / Rules / Layout / Guidance / Embodiment, plus a native spec
-and a generated `DESIGN.md` — describes a static object: a design language doesn't execute, doesn't
+and a generated `DESIGN.md` (Google's format, [google-labs-code/design.md](https://github.com/google-labs-code/design.md))
+— describes a static object: a design language doesn't execute, doesn't
 have a trust boundary, and doesn't cost tokens per turn. A harness does all three, so the mapping isn't
 one-to-one. `Loop` and `Boundaries` have no katagami analogue and exist because a harness has behavior
 over time. `Economics` has no katagami analogue and exists because a harness has a cost curve. `Axis`
@@ -172,7 +173,8 @@ state `embodiment: none` and do not fabricate a trace to fill the section.
 
 **No hand-authored `HARNESS.md`.** Katagami's own README states the reason to skip this for v1 more
 precisely than YAGNI does: the native Katagami spec is the source of truth, and a portable `DESIGN.md`
-projection is *generated* from it at publish time, not independently authored. zygos's frontmatter is
+(Google's format) projection is *generated* from it at publish time, not independently authored.
+zygos's frontmatter is
 already structured — enum-valued fields, a pinned SHA, a primitives list — so a generated export is a
 mechanical transform whenever it's needed. Authoring two synced formats by hand before the first has
 survived contact with more than one spec invites drift between them for no present benefit.

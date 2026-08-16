@@ -1,6 +1,6 @@
 # CLAUDE.md — operating rules for zygos
 
-Read [`DESIGN.md`](DESIGN.md) first. It is the specification; this file is the working procedure.
+Read [`FORMAT.md`](FORMAT.md) first. It is the specification; this file is the working procedure.
 [`CONTEXT.md`](CONTEXT.md) is the glossary — check it before introducing a new term, and before using
 "spec," "record," "harness," "primitive," or "embodiment" in a way that might not match how this repo
 already uses them.
@@ -38,8 +38,8 @@ git checkout -b research/<slug>
 cp docs/research/_template.md docs/research/harnesses/<slug>.md
 ```
 
-Fill every required section (`DESIGN.md` §4.1). `embodiment: none` is an acceptable, honestly-stated
-frontmatter value until the promotion criterion in `DESIGN.md` §4.3 is met — do not fabricate a trace
+Fill every required section (`FORMAT.md` §4.1). `embodiment: none` is an acceptable, honestly-stated
+frontmatter value until the promotion criterion in `FORMAT.md` §4.3 is met — do not fabricate a trace
 to fill the section. Update the target-list status in [`docs/research/README.md`](docs/research/README.md).
 
 **Never merge a research branch without a PR and an independent fidelity review** — `docs/research/SKILL.md`

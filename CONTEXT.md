@@ -6,8 +6,18 @@ the internal vocabulary of any harness being studied (a harness's own terms belo
 
 ## Language
 
+**FORMAT.md**:
+zygos's own root document — the spec format, provenance rules, and scope, formerly (wrongly) named
+`DESIGN.md`. Renamed because `DESIGN.md` is a reserved filename in this exact ecosystem: it's Google's
+own format spec ([google-labs-code/design.md](https://github.com/google-labs-code/design.md)) for
+describing a *visual design system* (color/typography/spacing/component tokens) to coding agents —
+katagami generates one per design language, and the name means that specifically, not "this repo's
+design document" generically. zygos studies harnesses, not visual identities; nothing here should ever
+produce an actual `DESIGN.md`, so the name was free to misuse and easy to misuse. Don't reclaim it.
+_Avoid_: naming any zygos file `DESIGN.md`, even informally, even in a code comment.
+
 **spec**:
-The one document zygos writes about one harness — every required section (`DESIGN.md` §4.1) plus
+The one document zygos writes about one harness — every required section (`FORMAT.md` §4.1) plus
 frontmatter, filed at `docs/research/harnesses/<slug>.md`. Chosen over "record" specifically: earlier
 drafts used both interchangeably, and "spec" also collides with the internal artifact some harnesses
 call their own "spec" (Temper's IOA/CSDL/Cedar specs, for one) — when both senses appear in the same
@@ -62,7 +72,7 @@ specific to how this harness's design commits to a vocabulary.
 A canonical task actually run on an installed harness, with a trace — this spec's own behavioral
 evidence, distinct from anything the studied project claims about itself. Optional in v1;
 `embodiment: none` is an honest frontmatter value, not a gap to explain away. Promotes to required once
-the library holds 4+ specs, or once a spec makes a claim only a run could confirm (`DESIGN.md` §4.3).
+the library holds 4+ specs, or once a spec makes a claim only a run could confirm (`FORMAT.md` §4.3).
 _Avoid_: treating a project's own disclosed benchmarks (however rigorous) as this spec's embodiment —
 they're evidence about the project, not about zygos's own verification of it.
 

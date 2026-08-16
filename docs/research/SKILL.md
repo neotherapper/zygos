@@ -1,6 +1,6 @@
 # How to research a harness
 
-Procedure, not policy — `DESIGN.md` §4 defines what a spec must contain; this file is how to actually
+Procedure, not policy — `FORMAT.md` §4 defines what a spec must contain; this file is how to actually
 go get it. Written after the Temper pass, from the friction that pass hit, not designed in advance.
 Follow `CLAUDE.md`'s five rules throughout; this file assumes them.
 
@@ -80,7 +80,7 @@ answer in Sources even when it resolves in the file's favor — a reader shouldn
   different layer than the one you were looking for (Temper had one for its own backend, not for LLM
   tokens). State precisely which layer has a cost model and which doesn't, rather than a single
   present/absent verdict.
-- **Embodiment.** `embodiment: none` is a fine answer in v1 — see `DESIGN.md` §4.3 for the promotion
+- **Embodiment.** `embodiment: none` is a fine answer in v1 — see `FORMAT.md` §4.3 for the promotion
   criterion. If the project discloses its own benchmarks with a stated method (sample count, tool name),
   that's real evidentiary standing worth recording even without a hands-on run — say so, and say clearly
   that it's still not this spec's own evidence.

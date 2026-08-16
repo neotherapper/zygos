@@ -13,7 +13,7 @@ provenance:            # primary | secondary | relayed
 verified_at:
 axis: []               # A | B | both | neither — plus prevention vs recovery if A
 primitives: []
-embodiment: none       # none | partial | full — see DESIGN.md §4.3
+embodiment: none       # none | partial | full — see FORMAT.md §4.3
 ---
 
 # <name>
