@@ -261,7 +261,7 @@ Five things, stated so they survive without exo.
 
 `embodiment: none`. exo was not installed or run. No canonical task, no trace. Nothing in this spec
 is behavioural evidence — every claim above comes from documentation, not from watching the harness
-operate. Per `DESIGN.md` §4.3, this section is optional in v1 and becomes required once four or more
+operate. Per `FORMAT.md` §4.3, this section is optional in v1 and becomes required once four or more
 specs exist in the library or once any claim here depends on a run to confirm; both conditions are
 unmet for this spec today.
 
@@ -303,7 +303,7 @@ unmet for this spec today.
   expect to use, and it is currently asserted from one side only.
 
 - **Migrated, not re-researched.** This spec was originally written against pavlos's ten-section
-  research-record format and reshaped into zygos's format (`DESIGN.md` §4) without returning to the
+  research-record format and reshaped into zygos's format (`FORMAT.md` §4) without returning to the
   primary sources a second time. The reshaping moved prose between sections — Architecture split into
   Loop and Boundaries — and added an `Economics` section that the original format did not ask for;
   that section's content is new synthesis from material already read, not from a fresh fetch. No claim

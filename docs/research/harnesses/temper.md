@@ -365,7 +365,7 @@ gap specific to these two projects or absent from the field's early designs gene
 - **Do not read the Economics section as "harnesses don't think about cost."** This spec's own finding
   is narrower: this harness has a real cost model, aimed at its own backend rather than at the LLM
   conversation reaching it. Generalizing to "the field ignores economics" from two specs is exactly
-  the kind of unsupported leap `DESIGN.md` warns against — see Limits.
+  the kind of unsupported leap `FORMAT.md` warns against — see Limits.
 
 ## Embodiment
 
@@ -377,7 +377,7 @@ actions/sec at 100 concurrent checkouts), 22 named DST tests including two deter
 proofs across ten runs, and three specific guard-resolution bugs the project's own DST-first process
 caught before they would have shipped. That is stronger evidentiary standing than exo's spec had —
 but it is still the project's own reported results, not independently reproduced here, and is recorded
-as such rather than as this spec's own finding. Per `DESIGN.md` §4.3, Embodiment stays optional until
+as such rather than as this spec's own finding. Per `FORMAT.md` §4.3, Embodiment stays optional until
 four or more specs exist in the library or a claim here depends on a run to confirm; neither condition
 is met.
 
