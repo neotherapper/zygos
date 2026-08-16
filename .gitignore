@@ -1,0 +1,12 @@
+.DS_Store
+node_modules/
+__pycache__/
+.venv/
+*.log
+.claude/settings.local.json
+
+# Session-capture directories. Untracked is not enough — this repo is public and these
+# hold raw conversation state, which is exactly what rule 5 in CLAUDE.md forbids shipping.
+.remember/
+.claude/
+scratchpad/
