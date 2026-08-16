@@ -25,14 +25,22 @@ harness, not a wide shallow catalogue. Output is markdown, not code.
 
 ## Writing a harness spec
 
+**Read [`docs/research/SKILL.md`](docs/research/SKILL.md) first.** It's the how-to — fetch order, the
+name-vs-thing trap this library's own subject invites, what fills each section well, and the fidelity-
+review step that must run before any merge. This file states what's required; that one states how to
+actually get it.
+
 ```bash
+git checkout -b research/<slug>
 cp docs/research/_template.md docs/research/harnesses/<slug>.md
 ```
 
 Fill every required section (`DESIGN.md` §4.1). `embodiment: none` is an acceptable, honestly-stated
 frontmatter value until the promotion criterion in `DESIGN.md` §4.3 is met — do not fabricate a trace
-to fill the section. Then update the target-list status in
-[`docs/research/README.md`](docs/research/README.md).
+to fill the section. Update the target-list status in [`docs/research/README.md`](docs/research/README.md).
+
+**Never merge a research branch without a PR and an independent fidelity review** — `docs/research/SKILL.md`
+§4. A presence check (every section filled) proves nothing about whether the content is true.
 
 **Before marking a spec done, ask the three questions that catch real defects:**
 

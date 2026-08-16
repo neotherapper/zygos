@@ -6,8 +6,9 @@ A library of complete AI agent harness specifications, researched and maintained
 names in Greek (Ζυγός is Libra). A harness does both: it couples a model to the world, and it trades
 capability against constraint.
 
-Read [`DESIGN.md`](DESIGN.md) for the full specification and [`CLAUDE.md`](CLAUDE.md) for the working
-rules. One spec so far: [`docs/research/harnesses/exo.md`](docs/research/harnesses/exo.md).
+Read [`DESIGN.md`](DESIGN.md) for the full specification, [`CLAUDE.md`](CLAUDE.md) for the working
+rules, and [`docs/research/SKILL.md`](docs/research/SKILL.md) for how to actually research one. Two
+specs so far: [`exo`](docs/research/harnesses/exo.md) and [`temper`](docs/research/harnesses/temper.md).
 
 ## What this is not
 
@@ -20,11 +21,13 @@ Not a harness itself, and not a framework. It studies them.
 
 ## Status
 
-Early. One spec (exo), format fixed at v1 (`DESIGN.md` §4), three more targeted next: Temper, RLM,
-DeepSeek Harness — chosen to bracket the design space rather than sample it. See
-[`docs/research/README.md`](docs/research/README.md) for the target list.
+Two specs (exo, Temper), format survived its first live hand-written research pass and an independent
+fidelity review before merge. RLM and DeepSeek Harness targeted next — chosen to bracket the design
+space rather than sample it. See [`docs/research/README.md`](docs/research/README.md) for the target
+list.
 
 ## License
 
-Content is research, not code. No license file yet — treat as all-rights-reserved on the prose until
-one is added; the intent is a permissive license once the format has stabilised past v1.
+[CC BY 4.0](LICENSE) on the written content — research records, concepts, ADRs. Each harness studied
+keeps its own license, recorded in its spec's `license` frontmatter field; this repository makes no
+claim over the projects it describes.
