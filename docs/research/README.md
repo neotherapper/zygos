@@ -16,14 +16,16 @@ see `DESIGN.md` §3 (Non-Goals: breadth).
 
 ## Pinned commits for the next three specs
 
-Read at these SHAs, not `main`, per rule 1:
+Read at these SHAs, not `main`, per rule 1. All three now confirmed to resolve
+(`curl -sI` against raw.githubusercontent.com, 2026-08-16) — repo coordinates for RLM and DeepSeek
+Harness came from pavlos's own target list, not the relayed message, which gave SHAs with no org/repo
+for either:
 
-| Harness | Repo | SHA |
-|---|---|---|
-| Temper | `nerdsane/temper` | `2f43ecefaa00bf2e9d75c6b67c2ddf8857821400` |
-| RLM | (repo TBD at research time) | `caf0bffa1acec17c062559433b4cd4ed92eee3d6` |
-| DeepSeek Harness | (repo TBD at research time) | `47f943859bef60e4160492346772ded9b24f765a` |
+| Harness | Repo | SHA | Resolved? |
+|---|---|---|---|
+| Temper | `nerdsane/temper` | `2f43ecefaa00bf2e9d75c6b67c2ddf8857821400` | ✅ 2026-08-16 |
+| RLM | `alexzhang13/rlm` | `caf0bffa1acec17c062559433b4cd4ed92eee3d6` | ✅ 2026-08-16 |
+| DeepSeek Harness | `deepseek-ai/deepseek-harness` | `47f943859bef60e4160492346772ded9b24f765a` | ✅ 2026-08-16 |
 
-These SHAs were relayed, not yet independently confirmed to resolve by this repo's own tooling — do so
-before citing any of them as `artifact_url` in a spec, the same check already run against katagami's
-and best-of-Agent-Harnesses' SHAs before either was quoted from.
+Confirming a SHA resolves confirms the *coordinate*, not the *content* — still read the file at that
+pin before citing anything from it, per rule 1.
