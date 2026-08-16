@@ -3,7 +3,7 @@
 | Harness | `kind` | Why it's on the list | Status | Spec |
 |---|---|---|---|---|
 | **exo** | agent-harness | Fully recursive self-editing agent + harness | done (v1 body, `embodiment: none`) | [`harnesses/exo.md`](harnesses/exo.md) |
-| **Temper** | agent-substrate | Formal verification of agent-authored capabilities — the only proved-before-running design on the list | not-started | — |
+| **Temper** | agent-substrate | Formal verification of agent-authored capabilities — the only proved-before-running design on the list | done (v1 body, `embodiment: none`) | [`harnesses/temper.md`](harnesses/temper.md) |
 | **RLM** | inference-paradigm | Recursive context decomposition as an alternative to tool-calling entirely | not-started | — |
 | **DeepSeek Harness** | agent-harness | Plugin-composable architecture from a frontier lab; candidate third instance of "the log is the program" | not-started | — |
 | **pi** | — | Named by the owner; exo's README places "Pi" alongside OpenClaw and Hermes as a personal-runtime-class harness, but does not identify a repo | blocked — needs disambiguation before research starts | — |
@@ -36,19 +36,24 @@ for either:
 Confirming a SHA resolves confirms the *coordinate*, not the *content* — still read the file at that
 pin before citing anything from it, per rule 1.
 
-## Prep notes for Temper (leads, not findings — verify before use)
+## Temper pass — outcome against the prep notes
 
-- Don't stop at the README. `docs/PAPER.md` (~78KB) and `docs/POSITIONING.md` (~14KB) exist at the
-  pinned SHA and are unread as of this note. The verification cascade is likely specified there, not
-  in the README's collapsed summary — for the one project on the list whose entire pitch is
-  verification, a README-only Verification section would be thin.
-- The README carries an explicit "What Temper is and is not" table — four rows, each naming something
-  it is not and why. Good raw material for `Boundaries`; check it's still current at the pinned SHA.
-- Two watch-for claims in the README, precise and self-sourced, no artifact behind either as read:
-  *"Runs on every build, in well under a second on a small spec"* and *"Deployed on Railway; Katagami
-  runs on it in production."* Quote and attribute as the project's own claim, or omit — do not let the
-  precision read as verified.
-- **Prediction to test, not assume:** the README says nothing about token/cost behavior. If Economics
-  comes back empty for Temper too (exo already did), that's either a real finding about the field or
-  evidence the section doesn't belong in the format — two specs is enough to start telling which,
-  one wasn't.
+Prep notes (below, superseded by [`harnesses/temper.md`](harnesses/temper.md)) predicted three things;
+here's how each landed:
+
+- **Read past the README.** Did — `docs/PAPER.md` and `docs/POSITIONING.md` read in full. The
+  verification cascade is specified there in real depth (four levels, gate points named precisely) —
+  the README's version is a fair but compressed summary.
+- **The two unsourced precise claims.** Confirmed unsourced — neither appears in `PAPER.md`'s
+  Evaluation section, which has real Criterion-benchmarked numbers but not these two. Quoted and
+  attributed as the project's own self-description in the spec's Limits section, not treated as
+  verified.
+- **Economics-empty-twice prediction: half right.** Not empty — but not what the format's default
+  question expects either. Temper has a real cost model for its own backend (query/cache optimizers,
+  telemetry cardinality decoupling) and none at all for LLM token/prompt economics. See the spec's
+  Economics section for the distinction; it's the more interesting finding than either "empty" or
+  "present" alone would have been.
+
+One thing the prep notes missed entirely: `docs/HARNESS.md` is Temper's own *development* harness (gates
+on people building Temper itself), not the product's agent-facing surface — a name-vs-thing trap, caught
+during the pass and flagged explicitly in the spec's Limits section rather than silently avoided.
