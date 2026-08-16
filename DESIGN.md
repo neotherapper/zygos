@@ -35,7 +35,7 @@ zygos sits beside two things it is not:
   format built for a different kind of object.
 - **A private harness build**, elsewhere, may draw technique from zygos's specs. Nothing flows back —
   zygos carries no reference to private work, its schema, its thresholds, or its internal names, and no
-  record here should be checkable against anything not publicly readable at its cited URL.
+  spec here should be checkable against anything not publicly readable at its cited URL.
 
 The topology mirrors katagami/Temper: katagami is a library of design-language specs built on the
 Temper runtime; zygos is a library of harness specs, with no runtime under it yet. If that changes,
@@ -138,7 +138,7 @@ Embodiment      A canonical task actually run on the installed harness, with a t
                 Optional in v1 — see §4.3.
 
 Limits of this  Mandatory, non-empty. What was not checked: code vs docs, claims not
-record          verified, files fetched but not read, no hands-on run. A spec that
+spec            verified, files fetched but not read, no hands-on run. A spec that
                 cannot name its own gaps is not finished.
 ```
 
@@ -191,7 +191,7 @@ built, has a defined set of checks available to it without redesigning the forma
 | Mechanically checkable now | Requires a human (or a model) to judge |
 |---|---|
 | All required sections present and non-empty | Whether the Philosophy quote is representative, not cherry-picked |
-| `Limits of this record` present and non-empty | Whether `provenance: primary` reflects a source actually opened |
+| `Limits of this spec` present and non-empty | Whether `provenance: primary` reflects a source actually opened |
 | Frontmatter enums valid (`lifecycle`, `provenance`, `axis`, `kind`) | Whether the Axis classification is correct |
 | `artifact_url` matches a 40-hex commit SHA, not a branch ref | Whether `Boundaries`' state-inventory table is complete |
 | Every direct quote carries a source anchor resolving in the Sources table | Whether `Economics` says something true, versus merely says something |

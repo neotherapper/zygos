@@ -13,7 +13,7 @@ provenance: primary
 verified_at: 2026-08-16
 axis: [A]                      # A only, and partially — recoverability, not soundness. See "Which axis"
 primitives: [event-log, artifact, sandbox, snapshot-rewind, tool-registry, adapter, skill, binding-secret, guardian, scheduler, memory-store]
-embodiment: none               # no hands-on run — see "Embodiment" and "Limits of this record"
+embodiment: none               # no hands-on run — see "Embodiment" and "Limits of this spec"
 ---
 
 # exo
@@ -191,7 +191,7 @@ retrieved by embedding search, on the stated argument that *"for a small set of 
 injecting the whole store is simpler and easier to audit"* — a legibility-over-cost tradeoff, explicitly
 scoped to a small store. Nothing in the read material discusses cache reuse, compaction shape, or what
 fraction of a turn's tokens are repeated prefix versus new content. This absence is itself a finding:
-a harness whose entire value proposition is runtime self-modification has, on the record read, no
+a harness whose entire value proposition is runtime self-modification has, on the material read, no
 stated position on what that modification costs per turn.
 
 ## Tradeoffs
@@ -259,17 +259,17 @@ Five things, stated so they survive without exo.
 
 ## Embodiment
 
-`embodiment: none`. exo was not installed or run. No canonical task, no trace. Nothing in this record
+`embodiment: none`. exo was not installed or run. No canonical task, no trace. Nothing in this spec
 is behavioural evidence — every claim above comes from documentation, not from watching the harness
 operate. Per `DESIGN.md` §4.3, this section is optional in v1 and becomes required once four or more
 specs exist in the library or once any claim here depends on a run to confirm; both conditions are
 unmet for this spec today.
 
-## Limits of this record
+## Limits of this spec
 
 - **Source read, code not read.** Every claim here comes from documentation in the repository, not
   from the Rust or TypeScript implementation. Whether the code matches the docs is unchecked. For a
-  record whose central finding is a mismatch *between two docs*, that limit is worth weighing.
+  spec whose central finding is a mismatch *between two docs*, that limit is worth weighing.
 
 - **The README overstates what is built, and I verified the contradiction but not its resolution.**
   The README says exo *"can clone itself, and even manage a lineage of clones"* and lists lineage
@@ -295,7 +295,7 @@ unmet for this spec today.
   "report clear errors"); which backends actually work is untested.
 
 - **`lifecycle: version-changing`** on the project's own statement that it is *"still in the early
-  stages of development"* with three named areas of active work. A record written against commit
+  stages of development"* with three named areas of active work. A spec written against commit
   `5bc77ce` should be assumed to drift quickly.
 
 - **Not compared.** Placing exo against Temper and RLM is the point of building this library and none

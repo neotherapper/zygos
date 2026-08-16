@@ -1,6 +1,9 @@
 # CLAUDE.md — operating rules for zygos
 
 Read [`DESIGN.md`](DESIGN.md) first. It is the specification; this file is the working procedure.
+[`CONTEXT.md`](CONTEXT.md) is the glossary — check it before introducing a new term, and before using
+"spec," "record," "harness," "primitive," or "embodiment" in a way that might not match how this repo
+already uses them.
 
 ## What this repo is
 
@@ -14,7 +17,7 @@ harness, not a wide shallow catalogue. Output is markdown, not code.
    check catches the drift.
 2. **Every spec carries `provenance`, `verified_at`, `lifecycle`.** Required frontmatter, none
    substitutable for another. See [`docs/adrs/0001-guards-check-presence-not-truth.md`](docs/adrs/0001-guards-check-presence-not-truth.md).
-3. **"Limits of this record" is mandatory and non-empty.** A spec that cannot name its own gaps is not
+3. **"Limits of this spec" is mandatory and non-empty.** A spec that cannot name its own gaps is not
    finished.
 4. **Omit weak figures rather than sourcing them weakly.** Star counts and adoption figures are
    excluded by default. If a number is load-bearing, open the primary source behind it — not the

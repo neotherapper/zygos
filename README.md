@@ -28,6 +28,6 @@ list.
 
 ## License
 
-[CC BY 4.0](LICENSE) on the written content — research records, concepts, ADRs. Each harness studied
+[CC BY 4.0](LICENSE) on the written content — research specs, concepts, ADRs. Each harness studied
 keeps its own license, recorded in its spec's `license` frontmatter field; this repository makes no
 claim over the projects it describes.
