@@ -35,6 +35,18 @@ model), Cedar (authorization policy), Markdown+Python-style tool calls (curation
   first two into entities is explicitly out of scope here.
 - Follow `docs/research/SKILL.md` for *what* to research and how to fill each section — this plan does
   not redefine that; it wires an agent to execute it through Temper instead of by hand.
+- **Guard scope, stated honestly, not implied.** IOA's guard language, per the only syntax evidenced
+  in Temper's reference app (`is_true`, `items > 0` — boolean and numeric comparisons over state, no
+  string-format or regex predicates), can express "all sections present" and "identity fields present."
+  It cannot express "`artifact_url` matches a 40-hex SHA" or "every quote has a resolving source anchor"
+  without inventing guard syntax no primary source has shown. Those two items from ADR-0001's mechanical
+  column are routed to Task 4's fidelity-review check instead, not silently dropped and not faked into
+  the guard. This is a real, disclosed narrowing of ADR-0002 line 65's "every required frontmatter field"
+  language — recorded here and again in Task 6's addendum, not hidden.
+- **Frontmatter list fields are YAML arrays, not scalars, everywhere else in this repo** (`axis: [A]`,
+  `primitives: [...]` — confirmed against `_template.md`, `exo.md`, `temper.md`). `Axis` and `Primitives`
+  are `Collection(Edm.String)` in the CSDL below, not `Edm.String` — a scalar would silently violate this
+  plan's own byte-shape-compatible-export constraint.
 
 ---
 
@@ -105,7 +117,12 @@ find where it actually comes from; (b) what mechanism actually dispatches a cura
 against an entity — is it a Temper `reaction`, a WASM integration module, or something orchestrated
 outside Temper entirely; (c) confirm the sandboxed Python REPL tool surface referenced in katagami's
 skill files (`temper.create`, `temper.action`, `temper.get`, `sandbox.bash`, `sandbox.write`) is
-reachable from TemperPaw, and how an agent gets access to it.
+reachable from TemperPaw, and how an agent gets access to it; (d) **specifically for Task 4**: does
+Temper/TemperPaw expose a primitive that fires automatically when an entity enters a given state (a
+`reaction`, a state-entry hook, katagami's `review-quality` job's own trigger mechanism) — ADR-0002 line
+72-75 requires fidelity-review to run this way, "not as a manually-dispatched agent," and Task 4 below
+is written conditionally on what this step finds. If no such primitive is exposed, that is itself the
+finding — record it plainly rather than building the dispatched-skill shape and calling it equivalent.
 
 - [ ] **Step 5: Smoke-test the OData surface**
 
@@ -144,8 +161,11 @@ draft. Do not proceed on the original assumption once evidence contradicts it.
   `SetIdentity`, `WritePhilosophy`, `WritePrimitivesSection`, `WriteLoop`, `WriteBoundaries`,
   `WriteVerification`, `SetAxis`, `WriteEconomics`, `WriteTradeoffs`, `WriteWhatToSteal`,
   `WriteWhatNotTo`, `SetEmbodiment`, `WriteLimits`, `WriteSources`, `SubmitForReview`,
-  `RecordFidelityReview`, `Publish`, `Revise`, `Archive` — consumed by Task 3's skill and Task 4's
-  review job by exact action name.
+  `RecordFidelityReview`, `ReviseDraft`, `Publish`, `Revise`, `Archive` — consumed by Task 3's skill and
+  Task 4's review job by exact action name. `ReviseDraft` (`UnderReview → Draft`) is the correction path
+  a failed fidelity review takes — without it a `NEEDS REVISION` verdict has nowhere for the entity to
+  go; `Revise` (`Published → UnderReview`) is the separate, later, already-published-content correction
+  path and is unchanged.
 
 - [ ] **Step 1: Write the CSDL data model**
 
@@ -220,16 +240,19 @@ draft. Do not proceed on the original assumption once evidence contradicts it.
         <Property Name="Lifecycle" Type="Zygos.Lifecycle"/>
         <Property Name="Provenance" Type="Zygos.Provenance"/>
         <Property Name="VerifiedAt" Type="Edm.DateTimeOffset"/>
-        <Property Name="Axis" Type="Edm.String"/>
-        <Property Name="Primitives" Type="Edm.String"/>
+        <Property Name="Axis" Type="Collection(Edm.String)"/>
+        <Property Name="Primitives" Type="Collection(Edm.String)"/>
         <Property Name="Embodiment" Type="Zygos.EmbodimentLevel" DefaultValue="None"/>
 
-        <!-- Body sections (FORMAT.md §4.1 order) -->
+        <!-- Body sections (FORMAT.md §4.1 order; heading text each maps to is fixed in Task 5 Step 1,
+             not implied by these property names — "Verification" here is not "## Verification strategy",
+             "WhichAxis" here is not "## Which axis") -->
         <Property Name="Philosophy" Type="Edm.String"/>
         <Property Name="PrimitivesSection" Type="Edm.String"/>
         <Property Name="Loop" Type="Edm.String"/>
         <Property Name="Boundaries" Type="Edm.String"/>
         <Property Name="Verification" Type="Edm.String"/>
+        <Property Name="WhichAxis" Type="Edm.String"/>
         <Property Name="Economics" Type="Edm.String"/>
         <Property Name="Tradeoffs" Type="Edm.String"/>
         <Property Name="WhatToSteal" Type="Edm.String"/>
@@ -238,7 +261,9 @@ draft. Do not proceed on the original assumption once evidence contradicts it.
         <Property Name="Limits" Type="Edm.String"/>
         <Property Name="Sources" Type="Edm.String"/>
 
-        <!-- Presence flags — the guard's mechanical checklist, per ADR-0001 -->
+        <!-- Presence flags — the guard's mechanical checklist, per ADR-0001's left column, narrowed to
+             what IOA's evidenced boolean-guard syntax can express (see Global Constraints above) -->
+        <Property Name="HasIdentity" Type="Edm.Boolean" DefaultValue="false"/>
         <Property Name="HasPhilosophy" Type="Edm.Boolean" DefaultValue="false"/>
         <Property Name="HasPrimitivesSection" Type="Edm.Boolean" DefaultValue="false"/>
         <Property Name="HasLoop" Type="Edm.Boolean" DefaultValue="false"/>
@@ -272,21 +297,24 @@ draft. Do not proceed on the original assumption once evidence contradicts it.
 
       <Action Name="SetIdentity" IsBound="true">
         <Parameter Name="bindingParameter" Type="Zygos.HarnessSpec"/>
-        <Parameter Name="Title" Type="Edm.String"/>
-        <Parameter Name="Url" Type="Edm.String"/>
-        <Parameter Name="ArtifactUrl" Type="Edm.String"/>
-        <Parameter Name="Commit" Type="Edm.String"/>
+        <Parameter Name="Title" Type="Edm.String" Nullable="false"/>
+        <Parameter Name="Url" Type="Edm.String" Nullable="false"/>
+        <Parameter Name="ArtifactUrl" Type="Edm.String" Nullable="false"/>
+        <Parameter Name="Commit" Type="Edm.String" Nullable="false"/>
         <Parameter Name="Language" Type="Edm.String"/>
-        <Parameter Name="Kind" Type="Zygos.HarnessKind"/>
+        <Parameter Name="Kind" Type="Zygos.HarnessKind" Nullable="false"/>
         <Parameter Name="License" Type="Edm.String"/>
         <Parameter Name="ProjectStatus" Type="Edm.String"/>
-        <Parameter Name="Lifecycle" Type="Zygos.Lifecycle"/>
-        <Parameter Name="Provenance" Type="Zygos.Provenance"/>
-        <Parameter Name="VerifiedAt" Type="Edm.DateTimeOffset"/>
+        <Parameter Name="Lifecycle" Type="Zygos.Lifecycle" Nullable="false"/>
+        <Parameter Name="Provenance" Type="Zygos.Provenance" Nullable="false"/>
+        <Parameter Name="VerifiedAt" Type="Edm.DateTimeOffset" Nullable="false"/>
         <ReturnType Type="Zygos.HarnessSpec"/>
         <Annotation Term="Temper.Vocab.StateMachine.ValidFromStates">
           <Collection><String>Draft</String></Collection>
         </Annotation>
+        <Annotation Term="Temper.Vocab.Agent.Hint"
+          String="Title/Url/ArtifactUrl/Commit/Kind/Lifecycle/Provenance/VerifiedAt are Nullable=false —
+          the six-field identity core the SubmitForReview guard's has_identity flag depends on."/>
       </Action>
 
       <Action Name="WritePhilosophy" IsBound="true">
@@ -300,19 +328,40 @@ draft. Do not proceed on the original assumption once evidence contradicts it.
           String="Quote the project's own words per FORMAT.md §4.1 — paraphrase loses the position."/>
       </Action>
 
-      <!-- WritePrimitivesSection, WriteLoop, WriteBoundaries, WriteVerification,
-           WriteEconomics, WriteTradeoffs, WriteWhatToSteal, WriteWhatNotTo, WriteLimits,
-           WriteSources: identical shape to WritePhilosophy above, one Text parameter each,
-           bound to Draft. Write each one following this exact pattern before Step 2. -->
+      <!-- WriteLoop, WriteBoundaries, WriteVerification, WriteEconomics, WriteTradeoffs,
+           WriteWhatToSteal, WriteWhatNotTo, WriteLimits, WriteSources: identical shape to
+           WritePhilosophy above, one Text parameter each, bound to Draft. Write each one
+           following this exact pattern before Step 2.
+
+           WritePrimitivesSection is the ONE exception — it also carries the frontmatter list,
+           see Step 2 below. -->
+
+      <Action Name="WritePrimitivesSection" IsBound="true">
+        <Parameter Name="bindingParameter" Type="Zygos.HarnessSpec"/>
+        <Parameter Name="Text" Type="Edm.String" Nullable="false"/>
+        <Parameter Name="Primitives" Type="Collection(Edm.String)" Nullable="false"/>
+        <ReturnType Type="Zygos.HarnessSpec"/>
+        <Annotation Term="Temper.Vocab.StateMachine.ValidFromStates">
+          <Collection><String>Draft</String></Collection>
+        </Annotation>
+        <Annotation Term="Temper.Vocab.Agent.Hint"
+          String="Text is the '## Primitives' body table; Primitives is the short-slug frontmatter list
+          (e.g. [event-log, artifact, sandbox]) — both are authored in the same pass, so both are set by
+          this one action, the same reasoning as SetAxis bundling Axis with Analysis."/>
+      </Action>
 
       <Action Name="SetAxis" IsBound="true">
         <Parameter Name="bindingParameter" Type="Zygos.HarnessSpec"/>
-        <Parameter Name="Axis" Type="Edm.String" Nullable="false"/>
+        <Parameter Name="Axis" Type="Collection(Edm.String)" Nullable="false"/>
         <Parameter Name="Analysis" Type="Edm.String" Nullable="false"/>
         <ReturnType Type="Zygos.HarnessSpec"/>
         <Annotation Term="Temper.Vocab.StateMachine.ValidFromStates">
           <Collection><String>Draft</String></Collection>
         </Annotation>
+        <Annotation Term="Temper.Vocab.Agent.Hint"
+          String="Axis sets the frontmatter axis: [...] list (e.g. [A]); Analysis is the '## Which axis'
+          body prose, stored in the WhichAxis property — the two are written together, not separately,
+          because the frontmatter tag and its justification are always authored in the same pass."/>
       </Action>
 
       <Action Name="SetEmbodiment" IsBound="true">
@@ -342,6 +391,21 @@ draft. Do not proceed on the original assumption once evidence contradicts it.
         <Annotation Term="Temper.Vocab.StateMachine.ValidFromStates">
           <Collection><String>UnderReview</String></Collection>
         </Annotation>
+      </Action>
+
+      <Action Name="ReviseDraft" IsBound="true">
+        <Parameter Name="bindingParameter" Type="Zygos.HarnessSpec"/>
+        <Parameter Name="Reason" Type="Edm.String" Nullable="false"/>
+        <ReturnType Type="Zygos.HarnessSpec"/>
+        <Annotation Term="Temper.Vocab.StateMachine.ValidFromStates">
+          <Collection><String>UnderReview</String></Collection>
+        </Annotation>
+        <Annotation Term="Temper.Vocab.StateMachine.TargetState" String="Draft"/>
+        <Annotation Term="Temper.Vocab.Agent.Hint"
+          String="The correction path for a NEEDS REVISION fidelity-review verdict — distinct from
+          Revise (Published to UnderReview), which corrects already-published content instead. Existing
+          Write* calls stay true in has_* flags; only the sections named in Reason need re-writing before
+          SubmitForReview is called again."/>
       </Action>
 
       <Action Name="Publish" IsBound="true">
@@ -381,10 +445,12 @@ draft. Do not proceed on the original assumption once evidence contradicts it.
 
 - [ ] **Step 2: Write the remaining `Write*` actions by the `WritePhilosophy` pattern**
 
-Add `WritePrimitivesSection`, `WriteLoop`, `WriteBoundaries`, `WriteVerification`, `WriteEconomics`,
-`WriteTradeoffs`, `WriteWhatToSteal`, `WriteWhatNotTo`, `WriteLimits`, `WriteSources` to the `<Schema
-Namespace="Zygos">` block — each identical in shape to `WritePhilosophy`: one `Text` parameter, bound
-from `Draft`, returning `Zygos.HarnessSpec`. Ten actions, same three lines each as the template above.
+Add `WriteLoop`, `WriteBoundaries`, `WriteVerification`, `WriteEconomics`, `WriteTradeoffs`,
+`WriteWhatToSteal`, `WriteWhatNotTo`, `WriteLimits`, `WriteSources` to the `<Schema Namespace="Zygos">`
+block — each identical in shape to `WritePhilosophy`: one `Text` parameter, bound from `Draft`,
+returning `Zygos.HarnessSpec`. Nine actions, same three lines each as the template above.
+`WritePrimitivesSection` is already written in full above (Step 1) — it takes a second `Primitives`
+parameter and is not part of this batch.
 
 - [ ] **Step 3: Write the I/O Automaton behavioral spec**
 
@@ -400,6 +466,11 @@ initial = "Draft"
 # --- State Variables: one boolean per required section, mirroring the
 # CSDL Has* properties. The IOA guard reads these; the CSDL properties
 # are what an agent actually sets via the Write* actions' effects. ---
+
+[[state]]
+name = "has_identity"
+type = "bool"
+initial = "false"
 
 [[state]]
 name = "has_philosophy"
@@ -550,6 +621,8 @@ effect = [{ type = "set_bool", var = "has_sources", value = true }]
 name = "SetIdentity"
 kind = "input"
 from = ["Draft"]
+effect = [{ type = "set_bool", var = "has_identity", value = true }]
+hint = "Sets has_identity — the six Nullable=false CSDL parameters (Title/Url/ArtifactUrl/Commit/Kind/Lifecycle/Provenance/VerifiedAt) are the guard's frontmatter check, per ADR-0002 line 65."
 
 # --- The guard that makes ADR-0001's left column real ---
 
@@ -559,6 +632,7 @@ kind = "internal"
 from = ["Draft"]
 to = "UnderReview"
 guard = [
+  { type = "is_true", var = "has_identity" },
   { type = "is_true", var = "has_philosophy" },
   { type = "is_true", var = "has_primitives_section" },
   { type = "is_true", var = "has_loop" },
@@ -572,7 +646,7 @@ guard = [
   { type = "is_true", var = "has_limits" },
   { type = "is_true", var = "has_sources" },
 ]
-hint = "Requires all eleven required sections present. Embodiment is optional per FORMAT.md §4.3 — not gated here."
+hint = "Requires identity fields and all eleven required sections present. Embodiment is optional per FORMAT.md §4.3 — not gated here. Does NOT check artifact_url's SHA format or quote-source anchors — IOA's boolean/comparator guard syntax can't express those; Task 4's fidelity-review job covers them instead (see Global Constraints)."
 
 [[action]]
 name = "RecordFidelityReview"
@@ -587,6 +661,14 @@ from = ["UnderReview"]
 to = "Published"
 guard = [{ type = "is_true", var = "fidelity_review_passed" }]
 hint = "Only publishes once the automated fidelity-review job has recorded a pass."
+
+[[action]]
+name = "ReviseDraft"
+kind = "input"
+from = ["UnderReview"]
+to = "Draft"
+effect = [{ type = "set_bool", var = "fidelity_review_passed", value = false }]
+hint = "The path a NEEDS REVISION fidelity-review verdict takes. has_* flags are untouched — only the sections named in Reason need re-writing via their Write* action before SubmitForReview runs again."
 
 [[action]]
 name = "Revise"
@@ -619,6 +701,13 @@ assert = "no_further_transitions"
 ```
 // Cedar ABAC policies for HarnessSpec
 // Principal types: Agent, Admin. Public read — this repo is public by design (FORMAT.md §6).
+//
+// Every one of the 20 HarnessSpec actions (Task 2 Step 1-3) gets an explicit rule below — no generic
+// "write"/"create"/"update" bucket, because unlike the Temper reference app's Order entity, HarnessSpec
+// has no single generic write action: SetIdentity and the eleven Write*/Set* authoring actions are
+// each their own named action, so each is named here (the reference app's own convention — see
+// permit(...action in [Action::"create", Action::"update", Action::"submitOrder", ...])... — of listing
+// every action a rule actually covers, applied literally instead of assumed).
 
 permit(
     principal,
@@ -626,12 +715,29 @@ permit(
     resource is HarnessSpec
 );
 
+// Drafting actions — every action bound from Draft in the IOA (Task 2 Step 3): identity, all eleven
+// Write*/Set* section actions, and submitting for review.
 permit(
     principal is Agent,
-    action in [Action::"create", Action::"write", Action::"submitForReview"],
+    action in [
+        Action::"setIdentity", Action::"writePhilosophy", Action::"writePrimitivesSection",
+        Action::"writeLoop", Action::"writeBoundaries", Action::"writeVerification",
+        Action::"setAxis", Action::"writeEconomics", Action::"writeTradeoffs",
+        Action::"writeWhatToSteal", Action::"writeWhatNotTo", Action::"setEmbodiment",
+        Action::"writeLimits", Action::"writeSources", Action::"submitForReview"
+    ],
     resource is HarnessSpec
 ) when {
     resource.status == "Draft"
+};
+
+// The correction path back from a failed review — same drafting agent, from UnderReview only.
+permit(
+    principal is Agent,
+    action == Action::"reviseDraft",
+    resource is HarnessSpec
+) when {
+    resource.status == "UnderReview"
 };
 
 permit(
@@ -650,6 +756,20 @@ permit(
     resource.status == "UnderReview" &&
     resource.fidelityReviewPassed == true
 };
+
+permit(
+    principal is Admin,
+    action == Action::"revise",
+    resource is HarnessSpec
+) when {
+    resource.status == "Published"
+};
+
+permit(
+    principal is Admin,
+    action == Action::"archive",
+    resource is HarnessSpec
+);
 ```
 
 - [ ] **Step 5: Symlink into the local TemperPaw checkout and verify**
@@ -731,13 +851,25 @@ does not repeat that guidance, only how to execute it against the entity.
 
 ## Steps
 
-1. Read `docs/research/README.md`'s target list (`sandbox.read`). Pick the row with
-   `status: not-started` and the highest triage priority. Confirm its pinned SHA resolves
+1. Branch first, per `docs/research/SKILL.md` §0 — the drafting work below is entity API calls, not git
+   commits, but the PR the branch is for opens in step 6 below and must exist before Task 4's review
+   starts, per SKILL.md §4 step 1:
+
+```python
+sandbox.bash("cd /Users/georgiospilitsoglou/Developer/projects/zygos && git checkout -b research/<target-slug>")
+```
+
+2. Read `docs/research/README.md`'s target list (`sandbox.read`), **in full, including the prose below
+   the table** — not just the table's `status`/priority columns. A target can carry a load-bearing
+   question stated only in that prose (DeepSeek Harness does: "Economics is load-bearing... this spec's
+   Economics section either confirms or kills pavlos's R8"). Missing that note because only the table
+   was read is exactly the failure mode a literal table-scan risks. Pick the row with `status:
+   not-started` and the highest triage priority. Confirm its pinned SHA resolves
    (`sandbox.bash("curl -sI https://raw.githubusercontent.com/<org>/<repo>/<sha>/README.md")`)
    before doing anything else — a relayed SHA with no working coordinate has happened twice in this
    library's history.
 
-2. Create the entity:
+3. Create the entity:
 
 ```python
 spec = temper.create('HarnessSpecs', {'slug': '<target-slug>'})
@@ -751,19 +883,26 @@ temper.action('HarnessSpecs', spec_id, 'SetIdentity', {
 })
 ```
 
-3. Fetch primary sources per `docs/research/SKILL.md` §1 (repo tree via GitHub API, README, deep
+4. Fetch primary sources per `docs/research/SKILL.md` §1 (repo tree via GitHub API, README, deep
    architecture docs, anything the studied repo itself calls a "harness" — read it fully before citing
-   it, per §2's name-vs-thing trap).
+   it, per §2's name-vs-thing trap). For DeepSeek Harness specifically, read the compaction/caching
+   material with the R8 question open per step 2's note — this is the one target on the current list
+   where Economics is the point of the pass, not a section filled in afterward.
 
-4. Write each section as its own action call, in the order FORMAT.md §4.1 lists them:
+5. Write each section as its own action call, in the order FORMAT.md §4.1 lists them. `axis` and
+   `primitives` are lists (frontmatter is `axis: [A]`, `primitives: [...]`, never a bare string), and
+   `WritePrimitivesSection` sets both the body text and the frontmatter slug list in one call:
 
 ```python
 temper.action('HarnessSpecs', spec_id, 'WritePhilosophy', {'text': '<philosophy prose, with direct quotes>'})
-temper.action('HarnessSpecs', spec_id, 'WritePrimitivesSection', {'text': '<primitives table as markdown>'})
+temper.action('HarnessSpecs', spec_id, 'WritePrimitivesSection', {
+    'text': '<primitives table as markdown>',
+    'primitives': ['<slug-1>', '<slug-2>', '...']
+})
 temper.action('HarnessSpecs', spec_id, 'WriteLoop', {'text': '<loop prose>'})
 temper.action('HarnessSpecs', spec_id, 'WriteBoundaries', {'text': '<boundaries prose + state table>'})
 temper.action('HarnessSpecs', spec_id, 'WriteVerification', {'text': '<verification table + gate/report analysis>'})
-temper.action('HarnessSpecs', spec_id, 'SetAxis', {'axis': '<A|B|both|neither>', 'analysis': '<which-axis prose>'})
+temper.action('HarnessSpecs', spec_id, 'SetAxis', {'axis': ['<A|B|both|neither>'], 'analysis': '<which-axis prose>'})
 temper.action('HarnessSpecs', spec_id, 'WriteEconomics', {'text': '<economics prose>'})
 temper.action('HarnessSpecs', spec_id, 'WriteTradeoffs', {'text': '<buys/pays>'})
 temper.action('HarnessSpecs', spec_id, 'WriteWhatToSteal', {'text': '<numbered list>'})
@@ -773,7 +912,7 @@ temper.action('HarnessSpecs', spec_id, 'WriteLimits', {'text': '<what was not ch
 temper.action('HarnessSpecs', spec_id, 'WriteSources', {'text': '<sources table>'})
 ```
 
-5. Submit for review:
+6. Submit for review:
 
 ```python
 temper.action('HarnessSpecs', spec_id, 'SubmitForReview', {})
@@ -782,6 +921,22 @@ temper.action('HarnessSpecs', spec_id, 'SubmitForReview', {})
 Expected: succeeds if every `Write*` call above landed; the guard rejects with a clear error naming
 which `has_*` flag is still false if any section was skipped. Report the resulting `spec_id` and status
 — do not proceed to `fidelity-review` yourself; that is a separate skill run by a separate agent.
+
+7. Open the PR — required before Task 4's review starts, per `docs/research/SKILL.md` §4 step 1 ("Open
+   a PR from the research branch. Never merge a research branch without one — the PR body and its
+   comments are the audit trail"). There's no markdown file to commit yet (`Publish` in Task 5 generates
+   it) — open the PR against the branch as-is, body linking the entity's `spec_id`, so the branch and its
+   future commits (Task 5's markdown export) have a home from the start rather than being retrofitted
+   into a PR opened after the review already ran:
+
+```python
+sandbox.bash("cd /Users/georgiospilitsoglou/Developer/projects/zygos && "
+             "git commit --allow-empty -m 'Research: DeepSeek Harness (entity spec_id: <spec_id>)' && "
+             "git push -u origin research/<target-slug> && "
+             "gh pr create --base main --head research/<target-slug> "
+             "--title 'Research: DeepSeek Harness — via the Temper-backed pipeline' "
+             "--body 'HarnessSpec entity <spec_id>, UnderReview. See docs/adrs/0002.'")
+```
 ```
 
 - [ ] **Step 3: Symlink `zygos-curation` alongside `zygos-commons`**
@@ -818,18 +973,37 @@ git commit -m "zygos-curation: synthesize-harness skill; DeepSeek Harness throug
 
 ---
 
-### Task 4: `fidelity-review` skill — automate the adversarial check
+### Task 4: `fidelity-review` — automate the adversarial check
+
+**This task is conditional on Task 1 Step 4(d)'s finding — read that before starting.** ADR-0002 lines
+72-75 specify this runs "as a Temper job on `UnderReview`, not as a manually-dispatched agent" — an
+automatic trigger, the same shape as katagami's own `review-quality` job. Two branches:
+
+- **If Task 1 confirmed an automatic state-entry trigger primitive** (a `reaction` or equivalent):
+  build `zygos-commons/reactions/fidelity_review.toml` (or whatever the confirmed primitive's actual
+  file shape is — Task 1's findings file has the real answer) bound to `HarnessSpec` entering
+  `UnderReview`, and the review logic below runs inside that, not as a dispatched skill.
+- **If Task 1 found no such primitive exposed by TemperPaw**, build the skill file below instead —
+  but this is then a **confirmed, disclosed deviation from ADR-0002's Decision section**, not Phase 1
+  satisfying it. Say so in this task's outcome and again in Task 6's addendum; do not present a
+  dispatched skill as equivalent to an automatic job.
+
+The steps below write the skill-file version (the fallback), since it's the only shape that doesn't
+depend on Task 1's still-open answer. If Task 1 confirms a reaction primitive exists, port the same
+Steps 1-6 logic into that primitive's shape instead — the adversarial-check content doesn't change,
+only what triggers it.
 
 **Files:**
 - Create: `zygos-curation/agents/curator/skills/fidelity-review/SKILL.md`
 
 **Interfaces:**
-- Consumes: `temper.action('HarnessSpecs', id, 'RecordFidelityReview', {passed, findings})` from
-  Task 2.
-- Produces: a `HarnessSpec` in `UnderReview` with `fidelity_review_passed = true` (or a documented
-  fail, requiring a `Revise` back to Draft — not built as an automated retry loop in Phase 1;
-  a human re-runs `synthesize-harness` corrections manually on a `NEEDS REVISION` verdict, matching
-  how the Temper spec's own fidelity review was handled).
+- Consumes: `temper.action('HarnessSpecs', id, 'RecordFidelityReview', {passed, findings})` and
+  `temper.action('HarnessSpecs', id, 'ReviseDraft', {reason})` from Task 2.
+- Produces: a `HarnessSpec` in `UnderReview` with `fidelity_review_passed = true`, or a `HarnessSpec`
+  moved back to `Draft` via `ReviseDraft` on a `NEEDS REVISION` verdict, with findings posted as a PR
+  comment either way (per `docs/research/SKILL.md` §4 step 3) — not a retry loop in Phase 1; a human (or
+  a second `synthesize-harness` pass) does the actual correction, matching how the Temper spec's own
+  fidelity review was handled by hand.
 
 - [ ] **Step 1: Write the fidelity-review skill**
 
@@ -869,10 +1043,26 @@ temper.action('HarnessSpecs', spec_id, 'RecordFidelityReview', {
 })
 ```
 
-5. If `passed` is `False`, stop — do not call `Publish`. Report the findings; a human (or a second
-   `synthesize-harness` pass, corrected) fixes the draft and this skill runs again.
+5. Post the findings as a PR comment on the branch's PR (opened in Task 3 step 7), whatever the
+   verdict — per `docs/research/SKILL.md` §4 step 3, a clean pass is worth recording as evidence the
+   process works, not just a `NEEDS REVISION` verdict:
 
-6. If `passed` is `True`:
+```python
+sandbox.bash(f"cd /Users/georgiospilitsoglou/Developer/projects/zygos && "
+             f"gh pr comment research/<target-slug> --body '<findings, verbatim>'")
+```
+
+6. If `passed` is `False`, move the entity back to `Draft` — do not call `Publish`:
+
+```python
+temper.action('HarnessSpecs', spec_id, 'ReviseDraft', {'reason': '<summary of what needs fixing>'})
+```
+
+Report the findings; a human (or a second `synthesize-harness` pass, corrected) fixes the named sections
+via their `Write*` action while the entity is back in `Draft`, then calls `SubmitForReview` again and
+this skill re-runs.
+
+7. If `passed` is `True`:
 
 ```python
 temper.action('HarnessSpecs', spec_id, 'Publish', {})
@@ -906,64 +1096,91 @@ git commit -m "zygos-curation: fidelity-review skill; DeepSeek Harness Published
 ### Task 5: Publish generates the markdown export
 
 **Files:**
-- Create: `zygos-curation/agents/curator/skills/fidelity-review/SKILL.md` — extend Step 6 (above) with
+- Create: `zygos-curation/agents/curator/skills/fidelity-review/SKILL.md` — extend Step 7 (above) with
   the export step, added here rather than as a separate skill since export only ever follows a real
   `Publish`
 - Modify: `docs/research/README.md` — target-list status row for DeepSeek Harness
 
 **Interfaces:**
 - Produces: `docs/research/harnesses/deepseek-harness.md`, byte-shape-compatible with
-  `docs/research/_template.md`'s section order and every existing spec's frontmatter shape.
+  `docs/research/_template.md`'s section order and every existing spec's frontmatter shape, committed
+  onto the branch and PR already opened in Task 3 step 7 — Task 5 does not open a second PR.
 
-- [ ] **Step 1: Extend the fidelity-review skill's Step 6 with the export**
+- [ ] **Step 1: Extend the fidelity-review skill's Step 7 with the export**
 
 ```markdown
-7. After `Publish` succeeds, render the markdown export:
+8. After `Publish` succeeds, render the markdown export. The mapping is fixed here, not left to
+   whoever implements `render_harness_spec_markdown` to infer from property names — property names on
+   `HarnessSpec` (Task 2) and the markdown shape they map to are not the same string:
+
+   **Frontmatter, in this exact order** (`docs/research/_template.md` lines 1-17):
+   `name` (= `spec['slug']`), `title`, `url`, `artifact_url` (= `artifactUrl`), `commit`, `language`,
+   `kind` (enum → kebab-case: `AgentHarness`→`agent-harness`, `AgentSubstrate`→`agent-substrate`,
+   `InferenceParadigm`→`inference-paradigm`), `license`, `status` (= `projectStatus`, the project's own
+   stated maturity — **not** the `Status` state-machine property, which is always `Published` by the
+   time this renders and is not a frontmatter field at all; conflating the two puts the entity's
+   workflow state into the public file), `lifecycle` (enum → kebab-case, same rule as `kind`),
+   `provenance` (enum → kebab-case), `verified_at` (= `verifiedAt`, ISO date only, not the full
+   `DateTimeOffset`), `axis` (list, rendered `[A]` not `A` — same for multi-value), `primitives` (list,
+   rendered `[slug-1, slug-2, ...]`), `embodiment` (enum → kebab-case: `None`→`none`, `Partial`→`partial`,
+   `Full`→`full`).
+
+   **Body, in this exact heading order and exact heading text** (`docs/research/_template.md` lines
+   21-80 — the property name and the heading text differ; use the right column):
+
+   | Property | Heading |
+   |---|---|
+   | `philosophy` | `## Philosophy` |
+   | `primitivesSection` | `## Primitives` |
+   | `loop` | `## Loop` |
+   | `boundaries` | `## Boundaries` |
+   | `verification` | `## Verification strategy` |
+   | `whichAxis` | `## Which axis` |
+   | `economics` | `## Economics` |
+   | `tradeoffs` | `## Tradeoffs` |
+   | `whatToSteal` | `## What to steal` |
+   | `whatNotTo` | `## What not to` |
+   | `embodimentSection` | `## Embodiment` |
+   | `limits` | `## Limits of this spec` |
+   | `sources` | `## Sources` |
 
 ```python
 spec = temper.get('HarnessSpecs', spec_id)
-markdown = render_harness_spec_markdown(spec)  # see below
+markdown = render_harness_spec_markdown(spec)  # implements exactly the two tables above
 sandbox.write(f"docs/research/harnesses/{spec['slug']}.md", markdown)
 ```
 
-Where `render_harness_spec_markdown` produces exactly the shape `docs/research/_template.md` and every
-existing spec share: YAML frontmatter (`name`, `title`, `url`, `artifact_url`, `commit`, `language`,
-`kind`, `license`, `status`, `lifecycle`, `provenance`, `verified_at`, `axis`, `primitives`,
-`embodiment`), then `## Philosophy` through `## Sources` in FORMAT.md §4.1's exact order, each heading
-followed by that section's stored text verbatim.
-
-8. Branch, commit, open a PR — the same workflow every prior spec has gone through, not a new one:
+9. Commit onto the existing branch — do not open a new branch or a second PR; the one from Task 3
+   step 7 already exists and is the audit trail Task 4's findings comment is attached to:
 
 ```bash
 sandbox.bash("cd /Users/georgiospilitsoglou/Developer/projects/zygos && "
-             "git checkout -b research/deepseek-harness && "
              "git add docs/research/harnesses/deepseek-harness.md docs/research/README.md && "
              "git commit -m 'Research: DeepSeek Harness spec, via Temper-backed pipeline' && "
-             "git push -u origin research/deepseek-harness")
+             "git push")
 ```
 
-9. Update the target-list row (`docs/research/README.md`) to `status: done` with a link to the new
-   file, in the same commit as the markdown export.
+10. Update the target-list row (`docs/research/README.md`) to `status: done` with a link to the new
+    file, in the same commit as the markdown export.
 ```
 
 - [ ] **Step 2: Run the full pipeline once more, end to end, from a clean Draft**
 
 This is the actual proof, not a re-run of Task 4's output: create a fresh entity, run
-`synthesize-harness`, then `fidelity-review` including the export, and confirm a real PR exists.
+`synthesize-harness` (branch + PR opened per its step 1 and step 7), then `fidelity-review` including
+the export, and confirm the PR now carries both the findings comment and the markdown commit.
 
-- [ ] **Step 3: Open the PR and check it against the two existing specs**
+- [ ] **Step 3: Check the generated file against the two existing specs**
 
 ```bash
 cd /Users/georgiospilitsoglou/Developer/projects/zygos
-gh pr create --base main --head research/deepseek-harness \
-  --title "Research: DeepSeek Harness — via the Temper-backed pipeline" \
-  --body "First spec through zygos-commons/zygos-curation end to end. See docs/adrs/0002."
+gh pr view research/deepseek-harness  # confirm it already exists, findings comment attached
 diff <(head -20 docs/research/harnesses/temper.md) <(head -20 docs/research/harnesses/deepseek-harness.md)
 ```
 
 The `diff` isn't expected to be empty — different content — but the frontmatter *field order* and
-first-heading shape should match. If they don't, the render function has drifted from the template;
-fix it before merging.
+first-heading shape should match. If they don't, the render function has drifted from the two tables in
+Step 1; fix it before merging.
 
 - [ ] **Step 4: Merge (after review — this is real research content, the fidelity-review gate already
   ran, but a human confirms readability of the actual generated file before it becomes the third public
@@ -993,7 +1210,10 @@ git commit -m "fidelity-review: publish generates the markdown export"
 
 Verify: DeepSeek Harness exists as (a) a `Published` `HarnessSpec` entity, queryable via
 `/tdata/HarnessSpecs`, and (b) a merged `docs/research/harnesses/deepseek-harness.md`, indistinguishable
-in shape from `exo.md` and `temper.md`.
+in shape from `exo.md` and `temper.md`. Also record explicitly, from Task 4: did fidelity-review run as
+an automatic Temper job (satisfying ADR-0002 lines 72-75 as written) or as the dispatched-skill fallback
+(a disclosed deviation from it)? This is a pass/fail-relevant fact for the success criterion, not a
+footnote — state it plainly in the addendum below either way.
 
 - [ ] **Step 2: Write the addendum**
 
@@ -1028,3 +1248,47 @@ katagami's own repos). Tasks 3–4's skill-file shape follows katagami's own `sy
 tool, a webhook — is Task 1's job to pin down before those tasks' dispatch steps can be run as literally
 written. If Task 1 finds a different mechanism, the `Step 4`/`Run it` instructions in Tasks 3–4 need a
 one-line substitution, not a redesign — the entity, guard, and skill *content* stay valid either way.
+
+**Revision log against the independent adversarial review (2026-08-16), verified before fixing, not
+applied blind:**
+
+Fixed, confirmed real by independently re-reading the plan against ADR-0001/ADR-0002/`SKILL.md`/the
+template before touching anything:
+- **A1/A2** (guard scope narrower than ADR-0002 states) — partially fixed: `has_identity` added and
+  gated, but SHA-format and quote-anchor checks are explicitly *not* added to the guard (IOA's evidenced
+  guard syntax can't express them without inventing syntax no primary source shows) — routed to Task 4
+  instead and disclosed in Global Constraints, not silently dropped.
+- **A3** (`axis`/`primitives` scalar vs. array) — fixed: both are now `Collection(Edm.String)`.
+- **A4** (`Primitives` frontmatter never settable) — fixed: bundled into `WritePrimitivesSection`.
+- **A5** (fidelity-review built as dispatched skill, not the automatic job ADR-0002 specifies) — made
+  explicitly conditional on Task 1's finding, with the deviation-if-not-found made loud in both Task 4's
+  intro and Task 6's closing check, rather than fixed outright — Task 1 hasn't run yet, so which shape is
+  buildable isn't known until it does.
+- **A6** (no correction path back to Draft) — fixed: `ReviseDraft` (`UnderReview → Draft`) added to CSDL,
+  IOA, and Cedar; wired into the fidelity-review skill's fail branch.
+- **A7/A9** (branch/PR timing vs. `SKILL.md` §0/§4) — fixed: branch moves to Task 3 step 1, PR opens at
+  Task 3 step 7 (before Task 4's review, findings posted as a PR comment), Task 5 commits onto the
+  existing PR instead of opening a second one.
+- **B1** (`SetAxis`'s `Analysis` param has nowhere to persist) — fixed: `WhichAxis` property added.
+- **B3** (Cedar covers 3 of 19 actions) — fixed: every action now has an explicit rule, following the
+  reference app's own convention of naming every action a rule covers rather than a generic bucket that
+  doesn't exist in this entity's action set.
+- **C1/C2** (render function unspecified; heading-text drift risk) — fixed: Task 5 Step 1 now carries the
+  literal frontmatter field list with enum→kebab-case rules and a property→heading-text table, checked
+  against the real template headings (`## Verification strategy`, `## Which axis`, `## Limits of this
+  spec`), not inferred from CSDL property names.
+- **A8** (skill might miss the DeepSeek Harness R8/Economics flag) — fixed: Task 3 step 2 now requires
+  reading the target-list prose in full, not just the table, and names the flag explicitly.
+
+Checked and judged likely false positives, not applied — reasoning, not silence:
+- **B4** (`resource.status` vs. `Status` casing) — the real Temper reference app's own `order.cedar`
+  uses the identical pattern (lowercase Cedar attributes against PascalCase CSDL properties), which reads
+  as a standard OData→Cedar serialization convention, not a bug specific to this plan.
+- **B5** (`kind = "internal"` actions gated by Cedar) — the real reference app also Cedar-gates its own
+  internal actions (`ConfirmOrder`, `ProcessOrder`, `ShipOrder`, all `kind = "internal"`, gated to
+  `operations_agent`). "Internal" in Temper's actual model doesn't mean "no authorizable caller"; the
+  review's premise here appears to not match the primitive it's checking against.
+
+Not independently re-checked against primary source before this revision (B9, the finer points of A9):
+flagged here so a fresh adversarial pass knows what's newly fixed, what was argued down, and what still
+just carries the original review's word.
