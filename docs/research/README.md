@@ -11,6 +11,12 @@
 Temper, RLM and DeepSeek Harness are chosen to bracket the design space — proved-before-running,
 recursive-self-editing (already covered by exo), everything-is-a-plugin — rather than sample it.
 
+**Economics is load-bearing for the DeepSeek Harness spec, more than the format's default.** pavlos
+carries a candidate requirement (R8, medium-confidence: compaction must preserve provider prefix
+reuse) drawn from two dsh design notes read directly, not yet backed by a spec. This spec's Economics
+section is that backing — it either confirms R8 or kills it. Read the compaction/caching material with
+that question open, not as a general pass.
+
 `best-of-Agent-Harnesses` is a discovery source for future targets, not a subject of its own record —
 see `DESIGN.md` §3 (Non-Goals: breadth).
 
