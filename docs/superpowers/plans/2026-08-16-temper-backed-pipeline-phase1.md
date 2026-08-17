@@ -122,7 +122,13 @@ Temper/TemperPaw expose a primitive that fires automatically when an entity ente
 `reaction`, a state-entry hook, katagami's `review-quality` job's own trigger mechanism) — ADR-0002 line
 72-75 requires fidelity-review to run this way, "not as a manually-dispatched agent," and Task 4 below
 is written conditionally on what this step finds. If no such primitive is exposed, that is itself the
-finding — record it plainly rather than building the dispatched-skill shape and calling it equivalent.
+finding — record it plainly rather than building the dispatched-skill shape and calling it equivalent;
+(e) confirm IOA's actual effect-type vocabulary — every effect in `order.ioa.toml` is a literal
+`{ type = "set_bool", var = "...", value = true }`, never parametric. Task 2's `RecordFidelityReview`
+action needs its `Passed` input parameter to flow into the `fidelity_review_passed` state variable at
+call time; the plan currently names this `set_bool_from_param` as a placeholder pending this check —
+confirm the real name, or confirm no parametric effect exists and split the action into two literal
+ones (`RecordFidelityReviewPassed` / `RecordFidelityReviewFailed`) before Task 2 is implemented.
 
 - [ ] **Step 5: Smoke-test the OData surface**
 
@@ -314,7 +320,7 @@ draft. Do not proceed on the original assumption once evidence contradicts it.
         </Annotation>
         <Annotation Term="Temper.Vocab.Agent.Hint"
           String="Title/Url/ArtifactUrl/Commit/Kind/Lifecycle/Provenance/VerifiedAt are Nullable=false —
-          the six-field identity core the SubmitForReview guard's has_identity flag depends on."/>
+          the eight-field identity core the SubmitForReview guard's has_identity flag depends on."/>
       </Action>
 
       <Action Name="WritePhilosophy" IsBound="true">
@@ -622,7 +628,7 @@ name = "SetIdentity"
 kind = "input"
 from = ["Draft"]
 effect = [{ type = "set_bool", var = "has_identity", value = true }]
-hint = "Sets has_identity — the six Nullable=false CSDL parameters (Title/Url/ArtifactUrl/Commit/Kind/Lifecycle/Provenance/VerifiedAt) are the guard's frontmatter check, per ADR-0002 line 65."
+hint = "Sets has_identity — the eight Nullable=false CSDL parameters (Title/Url/ArtifactUrl/Commit/Kind/Lifecycle/Provenance/VerifiedAt) are the guard's frontmatter check, per ADR-0002 line 65."
 
 # --- The guard that makes ADR-0001's left column real ---
 
@@ -652,7 +658,15 @@ hint = "Requires identity fields and all eleven required sections present. Embod
 name = "RecordFidelityReview"
 kind = "input"
 from = ["UnderReview"]
-effect = [{ type = "set_bool", var = "fidelity_review_passed" }]
+# set_bool_from_param binds the state variable to the action's own Passed parameter at call time —
+# this exact effect-type name is NOT confirmed against any primitive syntax this plan has actually
+# seen (order.ioa.toml's effects are all literal `value = true/false`, never parametric). Task 1 (or
+# a direct read of Temper's own IOA effect-type reference, if one exists) needs to confirm the real
+# name/shape before this compiles; if none exists, RecordFidelityReview's caller must instead invoke
+# two literal actions (e.g. RecordFidelityReviewPassed / RecordFidelityReviewFailed) and this action
+# and its guard below (line ~662) get split accordingly. Flagged here rather than left implicit,
+# same discipline as Task 1's other open primitive questions.
+effect = [{ type = "set_bool_from_param", var = "fidelity_review_passed", param = "Passed" }]
 
 [[action]]
 name = "Publish"
@@ -1292,3 +1306,19 @@ Checked and judged likely false positives, not applied — reasoning, not silenc
 Not independently re-checked against primary source before this revision (B9, the finer points of A9):
 flagged here so a fresh adversarial pass knows what's newly fixed, what was argued down, and what still
 just carries the original review's word.
+
+**Round 2 (second independent adversarial pass, same day):** 8 of 10 checks passed clean — the round-1
+fixes above held. Two real findings, both confirmed by direct grep before fixing, both textual rather
+than structural:
+
+- **SetIdentity hint miscounted its own field list** — said "six-field identity core," the CSDL action
+  actually declares eight `Nullable="false"` parameters (Title/Url/ArtifactUrl/Commit/Kind/Lifecycle/
+  Provenance/VerifiedAt). Fixed: both hint occurrences now say "eight."
+- **`RecordFidelityReview`'s IOA effect dropped its value** — every other `set_bool` effect in the file
+  carries a literal `value = true/false`; this one didn't, so the `Passed` parameter had no documented
+  way to reach `fidelity_review_passed`, and `Publish`'s guard could never fire. Fixed, but only as far
+  as this plan can honestly go without inventing confirmed syntax: named the effect
+  `set_bool_from_param` and marked it explicitly unconfirmed against any primitive this plan has
+  actually seen (`order.ioa.toml`'s effects are all literal), with a fallback (split into two literal
+  actions) if Task 1 finds no parametric effect exists. Added as Task 1 Step 4(e) — the same
+  discipline already applied to A5's dispatch-mechanism question, now applied here too.
