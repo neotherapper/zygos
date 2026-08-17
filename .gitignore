@@ -10,3 +10,6 @@ __pycache__/
 .remember/
 .claude/
 scratchpad/
+
+# Git worktrees — local working copies, never committed
+.worktrees/
