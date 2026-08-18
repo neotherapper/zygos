@@ -1,0 +1,5 @@
+name = "zygos-commons"
+description = "HarnessSpec entity — shared data model for AI agent harness specifications"
+version = "0.1.0"
+startup_install = "core"
+dependencies = ["paw-fs"]

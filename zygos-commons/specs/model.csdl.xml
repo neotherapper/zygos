@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  zygos-commons — HarnessSpec Entity Data Model
+  OData v4 model for AI agent harness specifications.
+-->
+<edmx:Edmx Version="4.0" xmlns:edmx="http://docs.oasis-open.org/odata/ns/edmx">
+  <edmx:DataServices>
+
+    <Schema Namespace="Paw.Vocab" xmlns="http://docs.oasis-open.org/odata/ns/edm">
+      <Term Name="StateMachine.States" Type="Collection(Edm.String)" AppliesTo="EntityType"/>
+      <Term Name="StateMachine.InitialState" Type="Edm.String" AppliesTo="EntityType"/>
+      <Term Name="StateMachine.ValidFromStates" Type="Collection(Edm.String)" AppliesTo="Action"/>
+      <Term Name="StateMachine.TargetState" Type="Edm.String" AppliesTo="Action"/>
+      <Term Name="Agent.Hint" Type="Edm.String" AppliesTo="Action Function EntityType"/>
+      <Term Name="ShardKey" Type="Edm.String" AppliesTo="EntityType"/>
+      <Term Name="AuthZ.CedarPolicy" Type="Edm.String" AppliesTo="EntityType Action Function"/>
+    </Schema>
+
+    <Schema Namespace="Paw.Zygos" xmlns="http://docs.oasis-open.org/odata/ns/edm">
+
+      <!-- ============ Enums ============ -->
+
+      <EnumType Name="HarnessSpecKind">
+        <Member Name="AgentHarness" Value="0"/>
+        <Member Name="AgentSubstrate" Value="1"/>
+        <Member Name="InferenceParadigm" Value="2"/>
+      </EnumType>
+
+      <EnumType Name="HarnessSpecLifecycle">
+        <Member Name="Current" Value="0"/>
+        <Member Name="VersionChanging" Value="1"/>
+        <Member Name="Retired" Value="2"/>
+      </EnumType>
+
+      <EnumType Name="HarnessSpecProvenance">
+        <Member Name="Primary" Value="0"/>
+        <Member Name="Secondary" Value="1"/>
+        <Member Name="Tertiary" Value="2"/>
+      </EnumType>
+
+      <EnumType Name="HarnessSpecEmbodimentLevel">
+        <Member Name="None" Value="0"/>
+        <Member Name="Partial" Value="1"/>
+        <Member Name="Full" Value="2"/>
+      </EnumType>
+
+      <EnumType Name="HarnessSpecStatus">
+        <Member Name="Draft" Value="0"/>
+        <Member Name="UnderReview" Value="1"/>
+        <Member Name="Published" Value="2"/>
+        <Member Name="Retired" Value="3"/>
+      </EnumType>
+
+      <EnumType Name="HarnessSpecAxis">
+        <Member Name="A" Value="0"/>
+        <Member Name="B" Value="1"/>
+        <Member Name="Both" Value="2"/>
+        <Member Name="Neither" Value="3"/>
+      </EnumType>
+
+      <!-- ============ Entity Type ============ -->
+
+      <EntityType Name="HarnessSpec">
+        <Key><PropertyRef Name="Id"/></Key>
+
+        <!-- Identity -->
+        <Property Name="Id" Type="Edm.String" Nullable="false"/>
+        <Property Name="Slug" Type="Edm.String" Nullable="false"/>
+        <Property Name="Title" Type="Edm.String" Nullable="false"/>
+        <Property Name="Url" Type="Edm.String" Nullable="false"/>
+        <Property Name="ArtifactUrl" Type="Edm.String" Nullable="false"/>
+        <Property Name="Commit" Type="Edm.String" Nullable="false"/>
+        <Property Name="Language" Type="Edm.String" Nullable="false"/>
+        <Property Name="Kind" Type="Paw.Zygos.HarnessSpecKind" Nullable="false"/>
+        <Property Name="License" Type="Edm.String" Nullable="false"/>
+        <Property Name="ProjectStatus" Type="Edm.String" Nullable="false"/>
+        <Property Name="Lifecycle" Type="Paw.Zygos.HarnessSpecLifecycle" Nullable="false"/>
+        <Property Name="Provenance" Type="Paw.Zygos.HarnessSpecProvenance" Nullable="false"/>
+        <Property Name="VerifiedAt" Type="Edm.DateTimeOffset" Nullable="false"/>
+
+        <!-- Section bodies -->
+        <Property Name="Philosophy" Type="Edm.String"/>
+        <Property Name="Primitives" Type="Edm.String"/>
+        <Property Name="Loop" Type="Edm.String"/>
+        <Property Name="Boundaries" Type="Edm.String"/>
+        <Property Name="Verification" Type="Edm.String"/>
+        <Property Name="Economics" Type="Edm.String"/>
+        <Property Name="Tradeoffs" Type="Edm.String"/>
+        <Property Name="WhatToSteal" Type="Edm.String"/>
+        <Property Name="WhatNotTo" Type="Edm.String"/>
+        <Property Name="Limits" Type="Edm.String"/>
+        <Property Name="Sources" Type="Edm.String"/>
+
+        <!-- Axis and embodiment -->
+        <Property Name="Axis" Type="Paw.Zygos.HarnessSpecAxis"/>
+        <Property Name="AxisAnalysis" Type="Edm.String"/>
+        <Property Name="EmbodimentLevel" Type="Paw.Zygos.HarnessSpecEmbodimentLevel"/>
+        <Property Name="EmbodimentTrace" Type="Edm.String"/>
+
+        <!-- Primitives list (frontmatter slug list) -->
+        <Property Name="PrimitivesList" Type="Edm.String"/>
+
+        <!-- Status tracking -->
+        <Property Name="Status" Type="Paw.Zygos.HarnessSpecStatus" Nullable="false"/>
+        <Property Name="CreatedAt" Type="Edm.DateTimeOffset" Nullable="false"/>
+        <Property Name="UpdatedAt" Type="Edm.DateTimeOffset" Nullable="false"/>
+
+        <Annotation Term="Paw.Vocab.StateMachine.States">
+          <Collection>
+            <String>Draft</String><String>UnderReview</String><String>Published</String><String>Retired</String>
+          </Collection>
+        </Annotation>
+        <Annotation Term="Paw.Vocab.StateMachine.InitialState" String="Draft"/>
+        <Annotation Term="Paw.Vocab.ShardKey" String="Slug"/>
+        <Annotation Term="Paw.Vocab.AuthZ.CedarPolicy" String="policies/harness_spec.cedar"/>
+      </EntityType>
+
+      <!-- ============ Entity Sets ============ -->
+
+      <EntityContainer Name="PawContainer">
+        <EntitySet Name="HarnessSpecs" EntityType="Paw.Zygos.HarnessSpec"/>
+      </EntityContainer>
+
+    </Schema>
+
+  </edmx:DataServices>
+</edmx:Edmx>

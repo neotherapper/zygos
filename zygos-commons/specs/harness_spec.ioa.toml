@@ -1,0 +1,183 @@
+# HarnessSpec Entity — I/O Automaton Specification
+#
+# Represents a structured AI agent harness specification. The lifecycle moves
+# from Draft through UnderReview to Published. Each section is written via its
+# own action, allowing the synthesize-harness skill to compose a spec through
+# discrete Temper action calls rather than a single monolithic write.
+
+[automaton]
+name = "HarnessSpec"
+states = ["Draft", "UnderReview", "Published", "Retired"]
+initial = "Draft"
+
+# Draft and UnderReview are waiting states — the spec author or reviewer
+# controls progression. Published is terminal; Retired is a separate
+# terminal state for superseded specs.
+allow_indefinite_states = ["Draft", "UnderReview"]
+
+# --- State Variables ---
+
+[[state]]
+name = "sections_written"
+type = "counter"
+initial = "0"
+
+# --- Actions: Identity ---
+
+[[action]]
+name = "SetIdentity"
+kind = "input"
+from = ["Draft"]
+to = "Draft"
+params = ["title", "url", "artifact_url", "commit", "language", "kind", "license", "project_status", "lifecycle", "provenance", "verified_at"]
+hint = "Set the harness identity fields. Must be called before any section writes."
+
+# --- Actions: Section Writes ---
+
+[[action]]
+name = "WritePhilosophy"
+kind = "input"
+from = ["Draft"]
+to = "Draft"
+params = ["text"]
+hint = "Write the Philosophy section (core rules, name-vs-thing trap, provenance, etc.)."
+
+[[action]]
+name = "WritePrimitivesSection"
+kind = "input"
+from = ["Draft"]
+to = "Draft"
+params = ["text", "primitives"]
+hint = "Write the Primitives section (table of primitives with columns) and set the primitives list."
+
+[[action]]
+name = "WriteLoop"
+kind = "input"
+from = ["Draft"]
+to = "Draft"
+params = ["text"]
+hint = "Write the Loop section (how the harness executes)."
+
+[[action]]
+name = "WriteBoundaries"
+kind = "input"
+from = ["Draft"]
+to = "Draft"
+params = ["text"]
+hint = "Write the Boundaries section (state inventory table). A table with a missing row is worse than no table."
+
+[[action]]
+name = "WriteVerification"
+kind = "input"
+from = ["Draft"]
+to = "Draft"
+params = ["text"]
+hint = "Write the Verification section (rigor levels, what each method gives, gate analysis)."
+
+[[action]]
+name = "SetAxis"
+kind = "input"
+from = ["Draft"]
+to = "Draft"
+params = ["axis", "analysis"]
+hint = "Set the structural axis (A, B, both, neither) and the analysis prose."
+
+[[action]]
+name = "WriteEconomics"
+kind = "input"
+from = ["Draft"]
+to = "Draft"
+params = ["text"]
+hint = "Write the Economics section (cost model, adoption barriers, economics-as-point targets)."
+
+[[action]]
+name = "WriteTradeoffs"
+kind = "input"
+from = ["Draft"]
+to = "Draft"
+params = ["text"]
+hint = "Write the Tradeoffs section (buys/pays list)."
+
+[[action]]
+name = "WriteWhatToSteal"
+kind = "input"
+from = ["Draft"]
+to = "Draft"
+params = ["text"]
+hint = "Write the WhatToSteal section (numbered list of borrowable techniques)."
+
+[[action]]
+name = "WriteWhatNotTo"
+kind = "input"
+from = ["Draft"]
+to = "Draft"
+params = ["text"]
+hint = "Write the WhatNotTo section (bulleted list of anti-patterns to avoid)."
+
+[[action]]
+name = "SetEmbodiment"
+kind = "input"
+from = ["Draft"]
+to = "Draft"
+params = ["level", "trace"]
+hint = "Set the embodiment level (None, Partial, Full) and optional trace reference."
+
+[[action]]
+name = "WriteLimits"
+kind = "input"
+from = ["Draft"]
+to = "Draft"
+params = ["text"]
+hint = "Write the Limits section (what was not checked, known gaps). Mandatory and non-empty."
+
+[[action]]
+name = "WriteSources"
+kind = "input"
+from = ["Draft"]
+to = "Draft"
+params = ["text"]
+hint = "Write the Sources section (sources table with URLs, commits, access dates)."
+
+# --- Actions: Lifecycle Transitions ---
+
+[[action]]
+name = "SubmitForReview"
+kind = "input"
+from = ["Draft"]
+to = "UnderReview"
+hint = "Submit the draft for review. All required sections must be written."
+
+[[action]]
+name = "Approve"
+kind = "input"
+from = ["UnderReview"]
+to = "Published"
+hint = "Approve the spec and publish it."
+
+[[action]]
+name = "RequestChanges"
+kind = "input"
+from = ["UnderReview"]
+to = "Draft"
+params = ["feedback"]
+hint = "Request changes and return to Draft."
+
+[[action]]
+name = "Retire"
+kind = "input"
+from = ["Published", "UnderReview"]
+to = "Retired"
+params = ["reason"]
+hint = "Retire a spec (superseded, outdated, or incorrect)."
+
+# --- Reactions: Section completeness gate ---
+
+[[action.triggers]]
+name = "submit_check_completeness"
+kind = "entity"
+principal = "curator"
+to_state = "UnderReview"
+target_entity = "HarnessSpec"
+target_action = "SubmitForReview"
+
+[action.triggers.params_from]
