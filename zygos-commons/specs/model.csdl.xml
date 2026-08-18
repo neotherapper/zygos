@@ -2,11 +2,15 @@
 <!--
   zygos-commons — HarnessSpec Entity Data Model
   OData v4 model for AI agent harness specifications.
+  Reconciles to plan 2026-08-16-temper-backed-pipeline-phase1 Task 2.
+  Deviation (pre-authorized by plan §Task 2 IOA note): RecordFidelityReview is
+  split into RecordFidelityReviewPassed / RecordFidelityReviewFailed because the
+  platform has no set_bool_from_param effect.
 -->
 <edmx:Edmx Version="4.0" xmlns:edmx="http://docs.oasis-open.org/odata/ns/edmx">
   <edmx:DataServices>
 
-    <Schema Namespace="Paw.Vocab" xmlns="http://docs.oasis-open.org/odata/ns/edm">
+    <Schema Namespace="Temper.Vocab" xmlns="http://docs.oasis-open.org/odata/ns/edm">
       <Term Name="StateMachine.States" Type="Collection(Edm.String)" AppliesTo="EntityType"/>
       <Term Name="StateMachine.InitialState" Type="Edm.String" AppliesTo="EntityType"/>
       <Term Name="StateMachine.ValidFromStates" Type="Collection(Edm.String)" AppliesTo="Action"/>
@@ -16,46 +20,39 @@
       <Term Name="AuthZ.CedarPolicy" Type="Edm.String" AppliesTo="EntityType Action Function"/>
     </Schema>
 
-    <Schema Namespace="Paw.Zygos" xmlns="http://docs.oasis-open.org/odata/ns/edm">
+    <Schema Namespace="Zygos" xmlns="http://docs.oasis-open.org/odata/ns/edm">
 
       <!-- ============ Enums ============ -->
 
-      <EnumType Name="HarnessSpecKind">
+      <EnumType Name="HarnessKind">
         <Member Name="AgentHarness" Value="0"/>
         <Member Name="AgentSubstrate" Value="1"/>
         <Member Name="InferenceParadigm" Value="2"/>
       </EnumType>
 
-      <EnumType Name="HarnessSpecLifecycle">
+      <EnumType Name="Lifecycle">
         <Member Name="Current" Value="0"/>
         <Member Name="VersionChanging" Value="1"/>
         <Member Name="Retired" Value="2"/>
       </EnumType>
 
-      <EnumType Name="HarnessSpecProvenance">
+      <EnumType Name="Provenance">
         <Member Name="Primary" Value="0"/>
         <Member Name="Secondary" Value="1"/>
-        <Member Name="Tertiary" Value="2"/>
+        <Member Name="Relayed" Value="2"/>
       </EnumType>
 
-      <EnumType Name="HarnessSpecEmbodimentLevel">
+      <EnumType Name="EmbodimentLevel">
         <Member Name="None" Value="0"/>
         <Member Name="Partial" Value="1"/>
         <Member Name="Full" Value="2"/>
       </EnumType>
 
-      <EnumType Name="HarnessSpecStatus">
+      <EnumType Name="SpecStatus">
         <Member Name="Draft" Value="0"/>
         <Member Name="UnderReview" Value="1"/>
         <Member Name="Published" Value="2"/>
-        <Member Name="Retired" Value="3"/>
-      </EnumType>
-
-      <EnumType Name="HarnessSpecAxis">
-        <Member Name="A" Value="0"/>
-        <Member Name="B" Value="1"/>
-        <Member Name="Both" Value="2"/>
-        <Member Name="Neither" Value="3"/>
+        <Member Name="Archived" Value="3"/>
       </EnumType>
 
       <!-- ============ Entity Type ============ -->
@@ -63,62 +60,303 @@
       <EntityType Name="HarnessSpec">
         <Key><PropertyRef Name="Id"/></Key>
 
-        <!-- Identity -->
-        <Property Name="Id" Type="Edm.String" Nullable="false"/>
+        <!-- Identity (8-field core, Nullable=false to mirror SetIdentity's params) -->
+        <Property Name="Id" Type="Edm.Guid" Nullable="false"/>
         <Property Name="Slug" Type="Edm.String" Nullable="false"/>
-        <Property Name="Title" Type="Edm.String" Nullable="false"/>
-        <Property Name="Url" Type="Edm.String" Nullable="false"/>
-        <Property Name="ArtifactUrl" Type="Edm.String" Nullable="false"/>
-        <Property Name="Commit" Type="Edm.String" Nullable="false"/>
-        <Property Name="Language" Type="Edm.String" Nullable="false"/>
-        <Property Name="Kind" Type="Paw.Zygos.HarnessSpecKind" Nullable="false"/>
-        <Property Name="License" Type="Edm.String" Nullable="false"/>
-        <Property Name="ProjectStatus" Type="Edm.String" Nullable="false"/>
-        <Property Name="Lifecycle" Type="Paw.Zygos.HarnessSpecLifecycle" Nullable="false"/>
-        <Property Name="Provenance" Type="Paw.Zygos.HarnessSpecProvenance" Nullable="false"/>
-        <Property Name="VerifiedAt" Type="Edm.DateTimeOffset" Nullable="false"/>
+        <Property Name="Title" Type="Edm.String"/>
+        <Property Name="Url" Type="Edm.String"/>
+        <Property Name="ArtifactUrl" Type="Edm.String"/>
+        <Property Name="Commit" Type="Edm.String"/>
+        <Property Name="Language" Type="Edm.String"/>
+        <Property Name="Kind" Type="Zygos.HarnessKind"/>
+        <Property Name="License" Type="Edm.String"/>
+        <Property Name="ProjectStatus" Type="Edm.String"/>
+        <Property Name="Lifecycle" Type="Zygos.Lifecycle"/>
+        <Property Name="Provenance" Type="Zygos.Provenance"/>
+        <Property Name="VerifiedAt" Type="Edm.DateTimeOffset"/>
+
+        <!-- Axis, primitives, embodiment -->
+        <Property Name="Axis" Type="Collection(Edm.String)"/>
+        <Property Name="Primitives" Type="Collection(Edm.String)"/>
+        <Property Name="Embodiment" Type="Zygos.EmbodimentLevel" DefaultValue="None"/>
 
         <!-- Section bodies -->
         <Property Name="Philosophy" Type="Edm.String"/>
-        <Property Name="Primitives" Type="Edm.String"/>
+        <Property Name="PrimitivesSection" Type="Edm.String"/>
         <Property Name="Loop" Type="Edm.String"/>
         <Property Name="Boundaries" Type="Edm.String"/>
         <Property Name="Verification" Type="Edm.String"/>
+        <Property Name="WhichAxis" Type="Edm.String"/>
         <Property Name="Economics" Type="Edm.String"/>
         <Property Name="Tradeoffs" Type="Edm.String"/>
         <Property Name="WhatToSteal" Type="Edm.String"/>
         <Property Name="WhatNotTo" Type="Edm.String"/>
+        <Property Name="EmbodimentSection" Type="Edm.String"/>
         <Property Name="Limits" Type="Edm.String"/>
         <Property Name="Sources" Type="Edm.String"/>
 
-        <!-- Axis and embodiment -->
-        <Property Name="Axis" Type="Paw.Zygos.HarnessSpecAxis"/>
-        <Property Name="AxisAnalysis" Type="Edm.String"/>
-        <Property Name="EmbodimentLevel" Type="Paw.Zygos.HarnessSpecEmbodimentLevel"/>
-        <Property Name="EmbodimentTrace" Type="Edm.String"/>
+        <!-- Section-completeness flags (guards on SubmitForReview) -->
+        <Property Name="HasIdentity" Type="Edm.Boolean" DefaultValue="false"/>
+        <Property Name="HasPhilosophy" Type="Edm.Boolean" DefaultValue="false"/>
+        <Property Name="HasPrimitivesSection" Type="Edm.Boolean" DefaultValue="false"/>
+        <Property Name="HasLoop" Type="Edm.Boolean" DefaultValue="false"/>
+        <Property Name="HasBoundaries" Type="Edm.Boolean" DefaultValue="false"/>
+        <Property Name="HasVerification" Type="Edm.Boolean" DefaultValue="false"/>
+        <Property Name="HasAxis" Type="Edm.Boolean" DefaultValue="false"/>
+        <Property Name="HasEconomics" Type="Edm.Boolean" DefaultValue="false"/>
+        <Property Name="HasTradeoffs" Type="Edm.Boolean" DefaultValue="false"/>
+        <Property Name="HasWhatToSteal" Type="Edm.Boolean" DefaultValue="false"/>
+        <Property Name="HasWhatNotTo" Type="Edm.Boolean" DefaultValue="false"/>
+        <Property Name="HasLimits" Type="Edm.Boolean" DefaultValue="false"/>
+        <Property Name="HasSources" Type="Edm.Boolean" DefaultValue="false"/>
 
-        <!-- Primitives list (frontmatter slug list) -->
-        <Property Name="PrimitivesList" Type="Edm.String"/>
+        <!-- Fidelity review -->
+        <Property Name="FidelityReviewPassed" Type="Edm.Boolean" DefaultValue="false"/>
+        <Property Name="FidelityFindings" Type="Edm.String"/>
 
         <!-- Status tracking -->
-        <Property Name="Status" Type="Paw.Zygos.HarnessSpecStatus" Nullable="false"/>
-        <Property Name="CreatedAt" Type="Edm.DateTimeOffset" Nullable="false"/>
-        <Property Name="UpdatedAt" Type="Edm.DateTimeOffset" Nullable="false"/>
+        <Property Name="Status" Type="Zygos.SpecStatus" Nullable="false" DefaultValue="Draft"/>
+        <Property Name="Version" Type="Edm.Int32" DefaultValue="0"/>
 
-        <Annotation Term="Paw.Vocab.StateMachine.States">
+        <Annotation Term="Temper.Vocab.StateMachine.States">
           <Collection>
-            <String>Draft</String><String>UnderReview</String><String>Published</String><String>Retired</String>
+            <String>Draft</String><String>UnderReview</String><String>Published</String><String>Archived</String>
           </Collection>
         </Annotation>
-        <Annotation Term="Paw.Vocab.StateMachine.InitialState" String="Draft"/>
-        <Annotation Term="Paw.Vocab.ShardKey" String="Slug"/>
-        <Annotation Term="Paw.Vocab.AuthZ.CedarPolicy" String="policies/harness_spec.cedar"/>
+        <Annotation Term="Temper.Vocab.StateMachine.InitialState" String="Draft"/>
+        <Annotation Term="Temper.Vocab.ShardKey" String="Id"/>
+        <Annotation Term="Temper.Vocab.AuthZ.CedarPolicy" String="policies/harness_spec.cedar"/>
       </EntityType>
 
-      <!-- ============ Entity Sets ============ -->
+      <!-- ============ Bound Actions ============ -->
 
-      <EntityContainer Name="PawContainer">
-        <EntitySet Name="HarnessSpecs" EntityType="Paw.Zygos.HarnessSpec"/>
+      <Action Name="SetIdentity" IsBound="true">
+        <Parameter Name="bindingParameter" Type="Zygos.HarnessSpec"/>
+        <Parameter Name="Title" Type="Edm.String" Nullable="false"/>
+        <Parameter Name="Url" Type="Edm.String" Nullable="false"/>
+        <Parameter Name="ArtifactUrl" Type="Edm.String" Nullable="false"/>
+        <Parameter Name="Commit" Type="Edm.String" Nullable="false"/>
+        <Parameter Name="Language" Type="Edm.String"/>
+        <Parameter Name="Kind" Type="Zygos.HarnessKind" Nullable="false"/>
+        <Parameter Name="License" Type="Edm.String"/>
+        <Parameter Name="ProjectStatus" Type="Edm.String"/>
+        <Parameter Name="Lifecycle" Type="Zygos.Lifecycle" Nullable="false"/>
+        <Parameter Name="Provenance" Type="Zygos.Provenance" Nullable="false"/>
+        <Parameter Name="VerifiedAt" Type="Edm.DateTimeOffset" Nullable="false"/>
+        <ReturnType Type="Zygos.HarnessSpec"/>
+        <Annotation Term="Temper.Vocab.StateMachine.ValidFromStates">
+          <Collection><String>Draft</String></Collection>
+        </Annotation>
+        <Annotation Term="Temper.Vocab.Agent.Hint" String="Record the spec's identity core (title, artifact URL, pinned commit, kind, lifecycle, provenance, verified-at). Re-check is fine."/>
+      </Action>
+
+      <Action Name="WritePhilosophy" IsBound="true">
+        <Parameter Name="bindingParameter" Type="Zygos.HarnessSpec"/>
+        <Parameter Name="Text" Type="Edm.String" Nullable="false"/>
+        <ReturnType Type="Zygos.HarnessSpec"/>
+        <Annotation Term="Temper.Vocab.StateMachine.ValidFromStates">
+          <Collection><String>Draft</String></Collection>
+        </Annotation>
+        <Annotation Term="Temper.Vocab.Agent.Hint" String="Write the Philosophy section."/>
+      </Action>
+
+      <Action Name="WritePrimitivesSection" IsBound="true">
+        <Parameter Name="bindingParameter" Type="Zygos.HarnessSpec"/>
+        <Parameter Name="Text" Type="Edm.String" Nullable="false"/>
+        <Parameter Name="Primitives" Type="Collection(Edm.String)" Nullable="false"/>
+        <ReturnType Type="Zygos.HarnessSpec"/>
+        <Annotation Term="Temper.Vocab.StateMachine.ValidFromStates">
+          <Collection><String>Draft</String></Collection>
+        </Annotation>
+        <Annotation Term="Temper.Vocab.Agent.Hint" String="Write the Primitives section and list the primitives."/>
+      </Action>
+
+      <Action Name="WriteLoop" IsBound="true">
+        <Parameter Name="bindingParameter" Type="Zygos.HarnessSpec"/>
+        <Parameter Name="Text" Type="Edm.String" Nullable="false"/>
+        <ReturnType Type="Zygos.HarnessSpec"/>
+        <Annotation Term="Temper.Vocab.StateMachine.ValidFromStates">
+          <Collection><String>Draft</String></Collection>
+        </Annotation>
+        <Annotation Term="Temper.Vocab.Agent.Hint" String="Write the Loop section."/>
+      </Action>
+
+      <Action Name="WriteBoundaries" IsBound="true">
+        <Parameter Name="bindingParameter" Type="Zygos.HarnessSpec"/>
+        <Parameter Name="Text" Type="Edm.String" Nullable="false"/>
+        <ReturnType Type="Zygos.HarnessSpec"/>
+        <Annotation Term="Temper.Vocab.StateMachine.ValidFromStates">
+          <Collection><String>Draft</String></Collection>
+        </Annotation>
+        <Annotation Term="Temper.Vocab.Agent.Hint" String="Write the Boundaries section."/>
+      </Action>
+
+      <Action Name="WriteVerification" IsBound="true">
+        <Parameter Name="bindingParameter" Type="Zygos.HarnessSpec"/>
+        <Parameter Name="Text" Type="Edm.String" Nullable="false"/>
+        <ReturnType Type="Zygos.HarnessSpec"/>
+        <Annotation Term="Temper.Vocab.StateMachine.ValidFromStates">
+          <Collection><String>Draft</String></Collection>
+        </Annotation>
+        <Annotation Term="Temper.Vocab.Agent.Hint" String="Write the Verification section."/>
+      </Action>
+
+      <Action Name="SetAxis" IsBound="true">
+        <Parameter Name="bindingParameter" Type="Zygos.HarnessSpec"/>
+        <Parameter Name="Axis" Type="Collection(Edm.String)" Nullable="false"/>
+        <Parameter Name="Analysis" Type="Edm.String" Nullable="false"/>
+        <ReturnType Type="Zygos.HarnessSpec"/>
+        <Annotation Term="Temper.Vocab.StateMachine.ValidFromStates">
+          <Collection><String>Draft</String></Collection>
+        </Annotation>
+        <Annotation Term="Temper.Vocab.Agent.Hint" String="Set which axes this harness addresses (structural soundness / factual truth) and the analysis."/>
+      </Action>
+
+      <Action Name="WriteEconomics" IsBound="true">
+        <Parameter Name="bindingParameter" Type="Zygos.HarnessSpec"/>
+        <Parameter Name="Text" Type="Edm.String" Nullable="false"/>
+        <ReturnType Type="Zygos.HarnessSpec"/>
+        <Annotation Term="Temper.Vocab.StateMachine.ValidFromStates">
+          <Collection><String>Draft</String></Collection>
+        </Annotation>
+        <Annotation Term="Temper.Vocab.Agent.Hint" String="Write the Economics section."/>
+      </Action>
+
+      <Action Name="WriteTradeoffs" IsBound="true">
+        <Parameter Name="bindingParameter" Type="Zygos.HarnessSpec"/>
+        <Parameter Name="Text" Type="Edm.String" Nullable="false"/>
+        <ReturnType Type="Zygos.HarnessSpec"/>
+        <Annotation Term="Temper.Vocab.StateMachine.ValidFromStates">
+          <Collection><String>Draft</String></Collection>
+        </Annotation>
+        <Annotation Term="Temper.Vocab.Agent.Hint" String="Write the Tradeoffs section."/>
+      </Action>
+
+      <Action Name="WriteWhatToSteal" IsBound="true">
+        <Parameter Name="bindingParameter" Type="Zygos.HarnessSpec"/>
+        <Parameter Name="Text" Type="Edm.String" Nullable="false"/>
+        <ReturnType Type="Zygos.HarnessSpec"/>
+        <Annotation Term="Temper.Vocab.StateMachine.ValidFromStates">
+          <Collection><String>Draft</String></Collection>
+        </Annotation>
+        <Annotation Term="Temper.Vocab.Agent.Hint" String="Write the WhatToSteal section."/>
+      </Action>
+
+      <Action Name="WriteWhatNotTo" IsBound="true">
+        <Parameter Name="bindingParameter" Type="Zygos.HarnessSpec"/>
+        <Parameter Name="Text" Type="Edm.String" Nullable="false"/>
+        <ReturnType Type="Zygos.HarnessSpec"/>
+        <Annotation Term="Temper.Vocab.StateMachine.ValidFromStates">
+          <Collection><String>Draft</String></Collection>
+        </Annotation>
+        <Annotation Term="Temper.Vocab.Agent.Hint" String="Write the WhatNotTo section."/>
+      </Action>
+
+      <Action Name="SetEmbodiment" IsBound="true">
+        <Parameter Name="bindingParameter" Type="Zygos.HarnessSpec"/>
+        <Parameter Name="Level" Type="Zygos.EmbodimentLevel" Nullable="false"/>
+        <Parameter Name="Text" Type="Edm.String"/>
+        <ReturnType Type="Zygos.HarnessSpec"/>
+        <Annotation Term="Temper.Vocab.StateMachine.ValidFromStates">
+          <Collection><String>Draft</String></Collection>
+        </Annotation>
+        <Annotation Term="Temper.Vocab.Agent.Hint" String="Record the embodiment level (none/partial/full) and the honest trace text, if any."/>
+      </Action>
+
+      <Action Name="WriteLimits" IsBound="true">
+        <Parameter Name="bindingParameter" Type="Zygos.HarnessSpec"/>
+        <Parameter Name="Text" Type="Edm.String" Nullable="false"/>
+        <ReturnType Type="Zygos.HarnessSpec"/>
+        <Annotation Term="Temper.Vocab.StateMachine.ValidFromStates">
+          <Collection><String>Draft</String></Collection>
+        </Annotation>
+        <Annotation Term="Temper.Vocab.Agent.Hint" String="Write the Limits-of-this-spec section. Required and non-empty."/>
+      </Action>
+
+      <Action Name="WriteSources" IsBound="true">
+        <Parameter Name="bindingParameter" Type="Zygos.HarnessSpec"/>
+        <Parameter Name="Text" Type="Edm.String" Nullable="false"/>
+        <ReturnType Type="Zygos.HarnessSpec"/>
+        <Annotation Term="Temper.Vocab.StateMachine.ValidFromStates">
+          <Collection><String>Draft</String></Collection>
+        </Annotation>
+        <Annotation Term="Temper.Vocab.Agent.Hint" String="Write the Sources section with pinned commit refs."/>
+      </Action>
+
+      <Action Name="SubmitForReview" IsBound="true">
+        <Parameter Name="bindingParameter" Type="Zygos.HarnessSpec"/>
+        <ReturnType Type="Zygos.HarnessSpec"/>
+        <Annotation Term="Temper.Vocab.StateMachine.ValidFromStates">
+          <Collection><String>Draft</String></Collection>
+        </Annotation>
+        <Annotation Term="Temper.Vocab.StateMachine.TargetState" String="UnderReview"/>
+        <Annotation Term="Temper.Vocab.Agent.Hint" String="Request review. Guarded by all 13 section-completeness flags."/>
+      </Action>
+
+      <Action Name="RecordFidelityReviewPassed" IsBound="true">
+        <Parameter Name="bindingParameter" Type="Zygos.HarnessSpec"/>
+        <Parameter Name="Findings" Type="Edm.String"/>
+        <ReturnType Type="Zygos.HarnessSpec"/>
+        <Annotation Term="Temper.Vocab.StateMachine.ValidFromStates">
+          <Collection><String>UnderReview</String></Collection>
+        </Annotation>
+        <Annotation Term="Temper.Vocab.Agent.Hint" String="Record that the fidelity review passed. (Split from RecordFidelityReview: no set_bool_from_param.)"/>
+      </Action>
+
+      <Action Name="RecordFidelityReviewFailed" IsBound="true">
+        <Parameter Name="bindingParameter" Type="Zygos.HarnessSpec"/>
+        <Parameter Name="Findings" Type="Edm.String"/>
+        <ReturnType Type="Zygos.HarnessSpec"/>
+        <Annotation Term="Temper.Vocab.StateMachine.ValidFromStates">
+          <Collection><String>UnderReview</String></Collection>
+        </Annotation>
+        <Annotation Term="Temper.Vocab.Agent.Hint" String="Record that the fidelity review failed. (Split from RecordFidelityReview: no set_bool_from_param.)"/>
+      </Action>
+
+      <Action Name="ReviseDraft" IsBound="true">
+        <Parameter Name="bindingParameter" Type="Zygos.HarnessSpec"/>
+        <Parameter Name="Reason" Type="Edm.String" Nullable="false"/>
+        <ReturnType Type="Zygos.HarnessSpec"/>
+        <Annotation Term="Temper.Vocab.StateMachine.ValidFromStates">
+          <Collection><String>UnderReview</String></Collection>
+        </Annotation>
+        <Annotation Term="Temper.Vocab.StateMachine.TargetState" String="Draft"/>
+        <Annotation Term="Temper.Vocab.Agent.Hint" String="Send a spec back to Draft for revision. Clears fidelity_review_passed."/>
+      </Action>
+
+      <Action Name="Publish" IsBound="true">
+        <Parameter Name="bindingParameter" Type="Zygos.HarnessSpec"/>
+        <ReturnType Type="Zygos.HarnessSpec"/>
+        <Annotation Term="Temper.Vocab.StateMachine.ValidFromStates">
+          <Collection><String>UnderReview</String></Collection>
+        </Annotation>
+        <Annotation Term="Temper.Vocab.StateMachine.TargetState" String="Published"/>
+        <Annotation Term="Temper.Vocab.Agent.Hint" String="Publish the spec. Guarded by fidelity_review_passed."/>
+      </Action>
+
+      <Action Name="Revise" IsBound="true">
+        <Parameter Name="bindingParameter" Type="Zygos.HarnessSpec"/>
+        <Parameter Name="Reason" Type="Edm.String" Nullable="false"/>
+        <ReturnType Type="Zygos.HarnessSpec"/>
+        <Annotation Term="Temper.Vocab.StateMachine.ValidFromStates">
+          <Collection><String>Published</String></Collection>
+        </Annotation>
+        <Annotation Term="Temper.Vocab.StateMachine.TargetState" String="UnderReview"/>
+        <Annotation Term="Temper.Vocab.Agent.Hint" String="Send a published spec back to UnderReview for a new fidelity pass. Clears fidelity_review_passed."/>
+      </Action>
+
+      <Action Name="Archive" IsBound="true">
+        <Parameter Name="bindingParameter" Type="Zygos.HarnessSpec"/>
+        <Parameter Name="Reason" Type="Edm.String" Nullable="false"/>
+        <ReturnType Type="Zygos.HarnessSpec"/>
+        <Annotation Term="Temper.Vocab.StateMachine.TargetState" String="Archived"/>
+        <Annotation Term="Temper.Vocab.Agent.Hint" String="Archive the spec. Terminal state."/>
+      </Action>
+
+      <!-- ============ Entity Set ============ -->
+
+      <EntityContainer Name="ZygosContainer">
+        <EntitySet Name="HarnessSpecs" EntityType="Zygos.HarnessSpec"/>
       </EntityContainer>
 
     </Schema>
