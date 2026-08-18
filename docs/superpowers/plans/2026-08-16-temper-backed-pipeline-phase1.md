@@ -139,7 +139,7 @@ curl -s http://localhost:3000/tdata/\$metadata | head -50
 Expected: an empty or near-empty CSDL document (no apps loaded yet) — confirms the server is actually
 serving before Task 2 adds an app to it.
 
-- [ ] **Step 6: Commit the findings file**
+- [x] **Step 6: Commit the findings file**
 
 ```bash
 cd /Users/georgiospilitsoglou/Developer/projects/zygos
@@ -805,7 +805,7 @@ Expected: the `HarnessSpec` entity type appears in the served metadata. If Task 
 different loading mechanism than a symlink, use that instead and note the deviation in the findings
 file.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 cd /Users/georgiospilitsoglou/Developer/projects/zygos
@@ -827,7 +827,7 @@ git commit -m "zygos-commons: HarnessSpec entity, guard, and Cedar policy"
 - Produces: one `HarnessSpec` entity in `UnderReview` state, for DeepSeek Harness, consumed by Task 4's
   review skill by its entity `Id`.
 
-- [ ] **Step 1: Write the curator agent's top-level instructions**
+- [x] **Step 1: Write the curator agent's top-level instructions**
 
 ```markdown
 # zygos curator
@@ -850,7 +850,7 @@ execute that research through `temper.*` calls instead of a text editor.
 fetching primary sources and eventually writing the published markdown export.
 ```
 
-- [ ] **Step 2: Write the synthesize-harness skill**
+- [x] **Step 2: Write the synthesize-harness skill**
 
 ```markdown
 ---
@@ -953,7 +953,7 @@ sandbox.bash("cd /Users/georgiospilitsoglou/Developer/projects/zygos && "
 ```
 ```
 
-- [ ] **Step 3: Symlink `zygos-curation` alongside `zygos-commons`**
+- [x] **Step 3: Symlink `zygos-curation` alongside `zygos-commons`**
 
 ```bash
 ln -s /Users/georgiospilitsoglou/Developer/projects/zygos/zygos-curation \
@@ -963,13 +963,13 @@ ln -s /Users/georgiospilitsoglou/Developer/projects/zygos/zygos-curation \
 Restart the TemperPaw server (`cargo run`) if it doesn't hot-reload the new app automatically —
 confirm which is true from Task 1's findings and note it here if it differs.
 
-- [ ] **Step 4: Dispatch the skill against DeepSeek Harness**
+- [x] **Step 4: Dispatch the skill against DeepSeek Harness**
 
 Run `synthesize-harness` (via whatever dispatch mechanism Task 1 Step 4 confirmed — an agent CLI
 command, an MCP call, or a direct API invocation; record the exact command used). Expect a `HarnessSpec`
 entity in `UnderReview` state at the end.
 
-- [ ] **Step 5: Verify via the OData API**
+- [x] **Step 5: Verify via the OData API**
 
 ```bash
 curl -s "http://localhost:3000/tdata/HarnessSpecs?\$filter=slug eq 'deepseek-harness'" | python3 -m json.tool
@@ -977,7 +977,7 @@ curl -s "http://localhost:3000/tdata/HarnessSpecs?\$filter=slug eq 'deepseek-har
 
 Expected: one entity, `status: "UnderReview"`, all `has_*` fields `true`.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 cd /Users/georgiospilitsoglou/Developer/projects/zygos
