@@ -107,7 +107,7 @@ name = "WritePhilosophy"
 kind = "input"
 from = ["Draft"]
 to = "Draft"
-params = ["Text"]
+params = ["Philosophy"]
 effect = [{ type = "set_bool", var = "has_philosophy", value = true }]
 hint = "Write the Philosophy section (core rules, name-vs-thing trap, provenance, etc.)."
 
@@ -116,7 +116,7 @@ name = "WritePrimitivesSection"
 kind = "input"
 from = ["Draft"]
 to = "Draft"
-params = ["Text", "Primitives"]
+params = ["PrimitivesSection", "Primitives"]
 effect = [{ type = "set_bool", var = "has_primitives_section", value = true }]
 hint = "Write the Primitives section (table of primitives with columns) and set the primitives list."
 
@@ -125,7 +125,7 @@ name = "WriteLoop"
 kind = "input"
 from = ["Draft"]
 to = "Draft"
-params = ["Text"]
+params = ["Loop"]
 effect = [{ type = "set_bool", var = "has_loop", value = true }]
 hint = "Write the Loop section (how the harness executes)."
 
@@ -134,7 +134,7 @@ name = "WriteBoundaries"
 kind = "input"
 from = ["Draft"]
 to = "Draft"
-params = ["Text"]
+params = ["Boundaries"]
 effect = [{ type = "set_bool", var = "has_boundaries", value = true }]
 hint = "Write the Boundaries section (state inventory table). A table with a missing row is worse than no table."
 
@@ -143,7 +143,7 @@ name = "WriteVerification"
 kind = "input"
 from = ["Draft"]
 to = "Draft"
-params = ["Text"]
+params = ["Verification"]
 effect = [{ type = "set_bool", var = "has_verification", value = true }]
 hint = "Write the Verification section (rigor levels, what each method gives, gate analysis)."
 
@@ -152,16 +152,16 @@ name = "SetAxis"
 kind = "input"
 from = ["Draft"]
 to = "Draft"
-params = ["Axis", "Analysis"]
+params = ["Axis", "WhichAxis"]
 effect = [{ type = "set_bool", var = "has_axis", value = true }]
-hint = "Set the structural axis (A, B, both, neither) and the analysis prose."
+hint = "Set the structural axis (A, B, both, neither) and the which-axis analysis prose."
 
 [[action]]
 name = "WriteEconomics"
 kind = "input"
 from = ["Draft"]
 to = "Draft"
-params = ["Text"]
+params = ["Economics"]
 effect = [{ type = "set_bool", var = "has_economics", value = true }]
 hint = "Write the Economics section (cost model, adoption barriers, economics-as-point targets)."
 
@@ -170,7 +170,7 @@ name = "WriteTradeoffs"
 kind = "input"
 from = ["Draft"]
 to = "Draft"
-params = ["Text"]
+params = ["Tradeoffs"]
 effect = [{ type = "set_bool", var = "has_tradeoffs", value = true }]
 hint = "Write the Tradeoffs section (buys/pays list)."
 
@@ -179,7 +179,7 @@ name = "WriteWhatToSteal"
 kind = "input"
 from = ["Draft"]
 to = "Draft"
-params = ["Text"]
+params = ["WhatToSteal"]
 effect = [{ type = "set_bool", var = "has_what_to_steal", value = true }]
 hint = "Write the WhatToSteal section (numbered list of borrowable techniques)."
 
@@ -188,7 +188,7 @@ name = "WriteWhatNotTo"
 kind = "input"
 from = ["Draft"]
 to = "Draft"
-params = ["Text"]
+params = ["WhatNotTo"]
 effect = [{ type = "set_bool", var = "has_what_not_to", value = true }]
 hint = "Write the WhatNotTo section (bulleted list of anti-patterns to avoid)."
 
@@ -197,15 +197,15 @@ name = "SetEmbodiment"
 kind = "input"
 from = ["Draft"]
 to = "Draft"
-params = ["Level", "Text"]
-hint = "Set the embodiment level (None, Partial, Full) and optional trace text."
+params = ["Embodiment", "EmbodimentSection"]
+hint = "Set the embodiment level (None, Partial, Full) and the honest trace text, if any."
 
 [[action]]
 name = "WriteLimits"
 kind = "input"
 from = ["Draft"]
 to = "Draft"
-params = ["Text"]
+params = ["Limits"]
 effect = [{ type = "set_bool", var = "has_limits", value = true }]
 hint = "Write the Limits section (what was not checked, known gaps). Mandatory and non-empty."
 
@@ -214,7 +214,7 @@ name = "WriteSources"
 kind = "input"
 from = ["Draft"]
 to = "Draft"
-params = ["Text"]
+params = ["Sources"]
 effect = [{ type = "set_bool", var = "has_sources", value = true }]
 hint = "Write the Sources section (sources table with URLs, commits, access dates)."
 
@@ -247,7 +247,7 @@ name = "RecordFidelityReviewPassed"
 kind = "input"
 from = ["UnderReview"]
 to = "UnderReview"
-params = ["Findings"]
+params = ["FidelityFindings"]
 effect = [{ type = "set_bool", var = "fidelity_review_passed", value = true }]
 hint = "Record that the fidelity review passed. (Split from RecordFidelityReview: no set_bool_from_param.)"
 
@@ -256,7 +256,7 @@ name = "RecordFidelityReviewFailed"
 kind = "input"
 from = ["UnderReview"]
 to = "UnderReview"
-params = ["Findings"]
+params = ["FidelityFindings"]
 effect = [{ type = "set_bool", var = "fidelity_review_passed", value = false }]
 hint = "Record that the fidelity review failed. (Split from RecordFidelityReview: no set_bool_from_param.)"
 

@@ -6,6 +6,13 @@
   Deviation (pre-authorized by plan §Task 2 IOA note): RecordFidelityReview is
   split into RecordFidelityReviewPassed / RecordFidelityReviewFailed because the
   platform has no set_bool_from_param effect.
+  Deviation (verified live, see temperpaw-findings.md §21): the runtime persists
+  bound-action params into entity fields keyed by param name — not by CSDL
+  property. Every Write* action's body param is therefore named after the CSDL
+  property it populates (Philosophy, Loop, ...), so section bodies do not
+  clobber each other under a shared "Text" key. Boolean properties are named to
+  match the IOA state-variable keys (has_*, fidelity_review_passed), which is
+  how the runtime stores them.
 -->
 <edmx:Edmx Version="4.0" xmlns:edmx="http://docs.oasis-open.org/odata/ns/edmx">
   <edmx:DataServices>
@@ -95,23 +102,25 @@
         <Property Name="Limits" Type="Edm.String"/>
         <Property Name="Sources" Type="Edm.String"/>
 
-        <!-- Section-completeness flags (guards on SubmitForReview) -->
-        <Property Name="HasIdentity" Type="Edm.Boolean" DefaultValue="false"/>
-        <Property Name="HasPhilosophy" Type="Edm.Boolean" DefaultValue="false"/>
-        <Property Name="HasPrimitivesSection" Type="Edm.Boolean" DefaultValue="false"/>
-        <Property Name="HasLoop" Type="Edm.Boolean" DefaultValue="false"/>
-        <Property Name="HasBoundaries" Type="Edm.Boolean" DefaultValue="false"/>
-        <Property Name="HasVerification" Type="Edm.Boolean" DefaultValue="false"/>
-        <Property Name="HasAxis" Type="Edm.Boolean" DefaultValue="false"/>
-        <Property Name="HasEconomics" Type="Edm.Boolean" DefaultValue="false"/>
-        <Property Name="HasTradeoffs" Type="Edm.Boolean" DefaultValue="false"/>
-        <Property Name="HasWhatToSteal" Type="Edm.Boolean" DefaultValue="false"/>
-        <Property Name="HasWhatNotTo" Type="Edm.Boolean" DefaultValue="false"/>
-        <Property Name="HasLimits" Type="Edm.Boolean" DefaultValue="false"/>
-        <Property Name="HasSources" Type="Edm.Boolean" DefaultValue="false"/>
+        <!-- Section-completeness flags (guards on SubmitForReview).
+             Named to match the IOA state-variable keys, which is how the
+             runtime persists them in entity fields. -->
+        <Property Name="has_identity" Type="Edm.Boolean" DefaultValue="false"/>
+        <Property Name="has_philosophy" Type="Edm.Boolean" DefaultValue="false"/>
+        <Property Name="has_primitives_section" Type="Edm.Boolean" DefaultValue="false"/>
+        <Property Name="has_loop" Type="Edm.Boolean" DefaultValue="false"/>
+        <Property Name="has_boundaries" Type="Edm.Boolean" DefaultValue="false"/>
+        <Property Name="has_verification" Type="Edm.Boolean" DefaultValue="false"/>
+        <Property Name="has_axis" Type="Edm.Boolean" DefaultValue="false"/>
+        <Property Name="has_economics" Type="Edm.Boolean" DefaultValue="false"/>
+        <Property Name="has_tradeoffs" Type="Edm.Boolean" DefaultValue="false"/>
+        <Property Name="has_what_to_steal" Type="Edm.Boolean" DefaultValue="false"/>
+        <Property Name="has_what_not_to" Type="Edm.Boolean" DefaultValue="false"/>
+        <Property Name="has_limits" Type="Edm.Boolean" DefaultValue="false"/>
+        <Property Name="has_sources" Type="Edm.Boolean" DefaultValue="false"/>
 
         <!-- Fidelity review -->
-        <Property Name="FidelityReviewPassed" Type="Edm.Boolean" DefaultValue="false"/>
+        <Property Name="fidelity_review_passed" Type="Edm.Boolean" DefaultValue="false"/>
         <Property Name="FidelityFindings" Type="Edm.String"/>
 
         <!-- Status tracking -->
@@ -152,7 +161,7 @@
 
       <Action Name="WritePhilosophy" IsBound="true">
         <Parameter Name="bindingParameter" Type="Zygos.HarnessSpec"/>
-        <Parameter Name="Text" Type="Edm.String" Nullable="false"/>
+        <Parameter Name="Philosophy" Type="Edm.String" Nullable="false"/>
         <ReturnType Type="Zygos.HarnessSpec"/>
         <Annotation Term="Temper.Vocab.StateMachine.ValidFromStates">
           <Collection><String>Draft</String></Collection>
@@ -162,7 +171,7 @@
 
       <Action Name="WritePrimitivesSection" IsBound="true">
         <Parameter Name="bindingParameter" Type="Zygos.HarnessSpec"/>
-        <Parameter Name="Text" Type="Edm.String" Nullable="false"/>
+        <Parameter Name="PrimitivesSection" Type="Edm.String" Nullable="false"/>
         <Parameter Name="Primitives" Type="Collection(Edm.String)" Nullable="false"/>
         <ReturnType Type="Zygos.HarnessSpec"/>
         <Annotation Term="Temper.Vocab.StateMachine.ValidFromStates">
@@ -173,7 +182,7 @@
 
       <Action Name="WriteLoop" IsBound="true">
         <Parameter Name="bindingParameter" Type="Zygos.HarnessSpec"/>
-        <Parameter Name="Text" Type="Edm.String" Nullable="false"/>
+        <Parameter Name="Loop" Type="Edm.String" Nullable="false"/>
         <ReturnType Type="Zygos.HarnessSpec"/>
         <Annotation Term="Temper.Vocab.StateMachine.ValidFromStates">
           <Collection><String>Draft</String></Collection>
@@ -183,7 +192,7 @@
 
       <Action Name="WriteBoundaries" IsBound="true">
         <Parameter Name="bindingParameter" Type="Zygos.HarnessSpec"/>
-        <Parameter Name="Text" Type="Edm.String" Nullable="false"/>
+        <Parameter Name="Boundaries" Type="Edm.String" Nullable="false"/>
         <ReturnType Type="Zygos.HarnessSpec"/>
         <Annotation Term="Temper.Vocab.StateMachine.ValidFromStates">
           <Collection><String>Draft</String></Collection>
@@ -193,7 +202,7 @@
 
       <Action Name="WriteVerification" IsBound="true">
         <Parameter Name="bindingParameter" Type="Zygos.HarnessSpec"/>
-        <Parameter Name="Text" Type="Edm.String" Nullable="false"/>
+        <Parameter Name="Verification" Type="Edm.String" Nullable="false"/>
         <ReturnType Type="Zygos.HarnessSpec"/>
         <Annotation Term="Temper.Vocab.StateMachine.ValidFromStates">
           <Collection><String>Draft</String></Collection>
@@ -204,7 +213,7 @@
       <Action Name="SetAxis" IsBound="true">
         <Parameter Name="bindingParameter" Type="Zygos.HarnessSpec"/>
         <Parameter Name="Axis" Type="Collection(Edm.String)" Nullable="false"/>
-        <Parameter Name="Analysis" Type="Edm.String" Nullable="false"/>
+        <Parameter Name="WhichAxis" Type="Edm.String" Nullable="false"/>
         <ReturnType Type="Zygos.HarnessSpec"/>
         <Annotation Term="Temper.Vocab.StateMachine.ValidFromStates">
           <Collection><String>Draft</String></Collection>
@@ -214,7 +223,7 @@
 
       <Action Name="WriteEconomics" IsBound="true">
         <Parameter Name="bindingParameter" Type="Zygos.HarnessSpec"/>
-        <Parameter Name="Text" Type="Edm.String" Nullable="false"/>
+        <Parameter Name="Economics" Type="Edm.String" Nullable="false"/>
         <ReturnType Type="Zygos.HarnessSpec"/>
         <Annotation Term="Temper.Vocab.StateMachine.ValidFromStates">
           <Collection><String>Draft</String></Collection>
@@ -224,7 +233,7 @@
 
       <Action Name="WriteTradeoffs" IsBound="true">
         <Parameter Name="bindingParameter" Type="Zygos.HarnessSpec"/>
-        <Parameter Name="Text" Type="Edm.String" Nullable="false"/>
+        <Parameter Name="Tradeoffs" Type="Edm.String" Nullable="false"/>
         <ReturnType Type="Zygos.HarnessSpec"/>
         <Annotation Term="Temper.Vocab.StateMachine.ValidFromStates">
           <Collection><String>Draft</String></Collection>
@@ -234,7 +243,7 @@
 
       <Action Name="WriteWhatToSteal" IsBound="true">
         <Parameter Name="bindingParameter" Type="Zygos.HarnessSpec"/>
-        <Parameter Name="Text" Type="Edm.String" Nullable="false"/>
+        <Parameter Name="WhatToSteal" Type="Edm.String" Nullable="false"/>
         <ReturnType Type="Zygos.HarnessSpec"/>
         <Annotation Term="Temper.Vocab.StateMachine.ValidFromStates">
           <Collection><String>Draft</String></Collection>
@@ -244,7 +253,7 @@
 
       <Action Name="WriteWhatNotTo" IsBound="true">
         <Parameter Name="bindingParameter" Type="Zygos.HarnessSpec"/>
-        <Parameter Name="Text" Type="Edm.String" Nullable="false"/>
+        <Parameter Name="WhatNotTo" Type="Edm.String" Nullable="false"/>
         <ReturnType Type="Zygos.HarnessSpec"/>
         <Annotation Term="Temper.Vocab.StateMachine.ValidFromStates">
           <Collection><String>Draft</String></Collection>
@@ -254,8 +263,8 @@
 
       <Action Name="SetEmbodiment" IsBound="true">
         <Parameter Name="bindingParameter" Type="Zygos.HarnessSpec"/>
-        <Parameter Name="Level" Type="Zygos.EmbodimentLevel" Nullable="false"/>
-        <Parameter Name="Text" Type="Edm.String"/>
+        <Parameter Name="Embodiment" Type="Zygos.EmbodimentLevel" Nullable="false"/>
+        <Parameter Name="EmbodimentSection" Type="Edm.String"/>
         <ReturnType Type="Zygos.HarnessSpec"/>
         <Annotation Term="Temper.Vocab.StateMachine.ValidFromStates">
           <Collection><String>Draft</String></Collection>
@@ -265,7 +274,7 @@
 
       <Action Name="WriteLimits" IsBound="true">
         <Parameter Name="bindingParameter" Type="Zygos.HarnessSpec"/>
-        <Parameter Name="Text" Type="Edm.String" Nullable="false"/>
+        <Parameter Name="Limits" Type="Edm.String" Nullable="false"/>
         <ReturnType Type="Zygos.HarnessSpec"/>
         <Annotation Term="Temper.Vocab.StateMachine.ValidFromStates">
           <Collection><String>Draft</String></Collection>
@@ -275,7 +284,7 @@
 
       <Action Name="WriteSources" IsBound="true">
         <Parameter Name="bindingParameter" Type="Zygos.HarnessSpec"/>
-        <Parameter Name="Text" Type="Edm.String" Nullable="false"/>
+        <Parameter Name="Sources" Type="Edm.String" Nullable="false"/>
         <ReturnType Type="Zygos.HarnessSpec"/>
         <Annotation Term="Temper.Vocab.StateMachine.ValidFromStates">
           <Collection><String>Draft</String></Collection>
@@ -295,7 +304,7 @@
 
       <Action Name="RecordFidelityReviewPassed" IsBound="true">
         <Parameter Name="bindingParameter" Type="Zygos.HarnessSpec"/>
-        <Parameter Name="Findings" Type="Edm.String"/>
+        <Parameter Name="FidelityFindings" Type="Edm.String"/>
         <ReturnType Type="Zygos.HarnessSpec"/>
         <Annotation Term="Temper.Vocab.StateMachine.ValidFromStates">
           <Collection><String>UnderReview</String></Collection>
@@ -305,7 +314,7 @@
 
       <Action Name="RecordFidelityReviewFailed" IsBound="true">
         <Parameter Name="bindingParameter" Type="Zygos.HarnessSpec"/>
-        <Parameter Name="Findings" Type="Edm.String"/>
+        <Parameter Name="FidelityFindings" Type="Edm.String"/>
         <ReturnType Type="Zygos.HarnessSpec"/>
         <Annotation Term="Temper.Vocab.StateMachine.ValidFromStates">
           <Collection><String>UnderReview</String></Collection>

@@ -60,8 +60,8 @@ permit(
 // Only an Admin publishes. Fidelity enforcement lives in the IOA guard
 // (`Publish` requires `is_true fidelity_review_passed`) plus the
 // `PublishRequiresFidelityReview` invariant — Cedar sees only entity fields,
-// not automaton state booleans, so `resource.FidelityReviewPassed` cannot be
-// evaluated here (platform limitation; see temperpaw-findings.md).
+// not automaton state booleans, so fidelity cannot be evaluated reliably here
+// (platform limitation; see temperpaw-findings.md §19).
 permit(
     principal is Admin,
     action == Action::"Publish",
