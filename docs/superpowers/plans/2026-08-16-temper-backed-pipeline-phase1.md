@@ -1083,12 +1083,19 @@ temper.action('HarnessSpecs', spec_id, 'Publish', {})
 ```
 ```
 
-- [ ] **Step 2: Run it against the DeepSeek Harness entity from Task 3**
+- [x] **Step 2: Run it against the DeepSeek Harness entity from Task 3**
 
 Expect a real finding or a clean pass — treat either as valid Phase 1 evidence, the same way the Temper
 spec's own review found and fixed real defects. Do not treat a clean pass on the first run as more
 trustworthy than one that found something; a clean pass with no findings on the very first automated
 run is itself worth a second look before trusting the mechanism.
+
+Outcome: **fail** — a real finding. The independent review (agent with no prior view of the draft,
+re-fetching all 15 pinned sources at `47f9438`) found F1–F10: one fabricated quote ("the log is the
+program" — absent repo-wide), one splice quote ("Inference is cheap here — we are DeepSeek"), a Goal
+durability claim contradicted by its own cited source, a self-skip-as-cost-signal claim the source
+disclaims, plus misattribution, a wrong count, and imprecise source-table/limits rows. Recorded via
+`RecordFidelityReviewFailed`, findings posted to PR #5, entity moved back to `Draft` via `ReviseDraft`.
 
 - [ ] **Step 3: Confirm `Publish` succeeded**
 
@@ -1098,12 +1105,18 @@ curl -s "http://localhost:3000/tdata/HarnessSpecs?\$filter=slug eq 'deepseek-har
 
 Expected: `status: "Published"`, `fidelityReviewPassed: true`.
 
-- [ ] **Step 4: Commit**
+**Not run — review verdict was fail, so `Publish` was deliberately not called.** Entity is back in
+`Draft` with `fidelity_review_passed: false`. Publish will be confirmed on the re-run after a corrected
+second `synthesize-harness` pass fixes F1–F10 and `SubmitForReview` re-triggers this review.
+
+- [x] **Step 4: Commit**
 
 ```bash
 git add zygos-curation/agents/curator/skills/fidelity-review/
-git commit -m "zygos-curation: fidelity-review skill; DeepSeek Harness Published"
+git commit -m "zygos-curation: fidelity-review skill; DeepSeek Harness failed review, back to Draft"
 ```
+
+The plan's suggested message assumed a pass; the committed message reflects the actual outcome.
 
 ---
 
