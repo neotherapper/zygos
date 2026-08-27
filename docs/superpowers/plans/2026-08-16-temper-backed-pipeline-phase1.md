@@ -1,5 +1,7 @@
 # zygos Phase 1: Temper-Backed Curation Pipeline — Implementation Plan
 
+> **Phase 1 complete — merged to `main` at `6b3408c` (2026-08-27).** DeepSeek Harness (`en-01a014ba-3158-7320-9c35-5153a73b525a` `Published`) via PR #5 and RLM (`en-01a04501-8081-7730-b6ce-852b67b7d524` `Published`) via PR #6 are both merged; `docs/research/harnesses/` now holds 4 specs (exo, temper, deepseek-harness, rlm). Next step per `docs/adrs/0002-temper-backed-curation-pipeline.md:Addendum 2026-08-27` is backfilling `exo`/`temper` into entities, not a 5th net-new harness. A fresh agent should start from that ADR addendum and `docs/research/README.md`, not from the checkboxes below (kept for audit).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Get one harness spec (DeepSeek Harness) through a real Temper-backed pipeline end to end —
@@ -1019,7 +1021,7 @@ only what triggers it.
   a second `synthesize-harness` pass) does the actual correction, matching how the Temper spec's own
   fidelity review was handled by hand.
 
-- [ ] **Step 1: Write the fidelity-review skill**
+- [x] **Step 1: Write the fidelity-review skill**
 
 ```markdown
 ---
@@ -1097,7 +1099,7 @@ durability claim contradicted by its own cited source, a self-skip-as-cost-signa
 disclaims, plus misattribution, a wrong count, and imprecise source-table/limits rows. Recorded via
 `RecordFidelityReviewFailed`, findings posted to PR #5, entity moved back to `Draft` via `ReviseDraft`.
 
-- [ ] **Step 3: Confirm `Publish` succeeded**
+- [x] **Step 3: Confirm `Publish` succeeded**
 
 ```bash
 curl -s "http://localhost:3000/tdata/HarnessSpecs?\$filter=slug eq 'deepseek-harness'" | python3 -m json.tool
@@ -1133,7 +1135,7 @@ The plan's suggested message assumed a pass; the committed message reflects the 
   `docs/research/_template.md`'s section order and every existing spec's frontmatter shape, committed
   onto the branch and PR already opened in Task 3 step 7 — Task 5 does not open a second PR.
 
-- [ ] **Step 1: Extend the fidelity-review skill's Step 7 with the export**
+- [x] **Step 1: Extend the fidelity-review skill's Step 7 with the export**
 
 ```markdown
 8. After `Publish` succeeds, render the markdown export. The mapping is fixed here, not left to
@@ -1191,13 +1193,13 @@ sandbox.bash("cd /Users/georgiospilitsoglou/Developer/projects/zygos && "
     file, in the same commit as the markdown export.
 ```
 
-- [ ] **Step 2: Run the full pipeline once more, end to end, from a clean Draft**
+- [x] **Step 2: Run the full pipeline once more, end to end, from a clean Draft** — done as RLM (PR #6, `caf0bffa` `Published`)
 
 This is the actual proof, not a re-run of Task 4's output: create a fresh entity, run
 `synthesize-harness` (branch + PR opened per its step 1 and step 7), then `fidelity-review` including
 the export, and confirm the PR now carries both the findings comment and the markdown commit.
 
-- [ ] **Step 3: Check the generated file against the two existing specs**
+- [x] **Step 3: Check the generated file against the two existing specs** — frontmatter order diff vs `temper.md` empty
 
 ```bash
 cd /Users/georgiospilitsoglou/Developer/projects/zygos
@@ -1209,7 +1211,7 @@ The `diff` isn't expected to be empty — different content — but the frontmat
 first-heading shape should match. If they don't, the render function has drifted from the two tables in
 Step 1; fix it before merging.
 
-- [ ] **Step 4: Merge (after review — this is real research content, the fidelity-review gate already
+- [x] **Step 4: Merge (after review — this is real research content, the fidelity-review gate already
   ran, but a human confirms readability of the actual generated file before it becomes the third public
   spec in the library)**
 
@@ -1217,7 +1219,7 @@ Step 1; fix it before merging.
 gh pr merge --merge --delete-branch
 ```
 
-- [ ] **Step 5: Commit the skill file changes**
+- [x] **Step 5: Commit the skill file changes**
 
 ```bash
 git add zygos-curation/
@@ -1233,7 +1235,7 @@ git commit -m "fidelity-review: publish generates the markdown export"
 
 **Interfaces:** None — this is the closing task, not a new interface.
 
-- [ ] **Step 1: Confirm the ADR-0002 success criterion**
+- [x] **Step 1: Confirm the ADR-0002 success criterion**
 
 Verify: DeepSeek Harness exists as (a) a `Published` `HarnessSpec` entity, queryable via
 `/tdata/HarnessSpecs`, and (b) a merged `docs/research/harnesses/deepseek-harness.md`, indistinguishable
@@ -1242,7 +1244,7 @@ an automatic Temper job (satisfying ADR-0002 lines 72-75 as written) or as the d
 (a disclosed deviation from it)? This is a pass/fail-relevant fact for the success criterion, not a
 footnote — state it plainly in the addendum below either way.
 
-- [ ] **Step 2: Write the addendum**
+- [x] **Step 2: Write the addendum**
 
 Append to ADR-0002, under a new `## Addendum — Phase 1 result (<date>)` heading: what worked as
 designed, what Task 1's investigation found that this plan didn't anticipate, and — explicitly — a
@@ -1250,7 +1252,7 @@ recommendation on whether Phase 2 (target-discovery automation, taxonomy job, or
 question named in ADR-0002 as deliberately unresolved) is worth pursuing next, based on what actually
 running this taught, not on katagami's shape alone.
 
-- [ ] **Step 3: Commit and push**
+- [x] **Step 3: Commit and push**
 
 ```bash
 git add docs/adrs/0002-temper-backed-curation-pipeline.md
