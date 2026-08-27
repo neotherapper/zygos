@@ -147,3 +147,41 @@ teaches in hand, not assumed now because katagami has all of them.
   gallery UI, in one pass). Rejected in favor of phasing: katagami itself represents a mature, multi-
   hundred-ADR build; committing to its full shape before Temper has been touched once risks a Phase 1
   shape that doesn't fit what Temper actually teaches once it's running.
+
+## Addendum — Phase 1 result (2026-08-27)
+
+### Success criterion
+
+Phase 1's success criterion (this ADR, § Phase 1) is met:
+
+- **(a) Published entity:** `HarnessSpec` `en-01a014ba-3158-7320-9c35-5153a73b525a` (`deepseek-harness`) is `Published` with `fidelity_review_passed: true`, queryable via `GET /tdata/HarnessSpecs('en-01a014ba-3158-7320-9c35-5153a73b525a')` against the local Temper server (port 3467, tenant `default`). Pinned at `deepseek-ai/deepseek-harness@47f943859bef60e4160492346772ded9b24f765a`, verified_at `2026-08-18`.
+
+- **(b) Markdown export:** `docs/research/harnesses/deepseek-harness.md` exists on branch `research/deepseek-harness` (PR #5, commits `4443042` and `4e70cad`), byte-shape-compatible with `docs/research/_template.md` and `exo.md`/`temper.md` (frontmatter field order `name → embodiment` per the fixed mapping in `fidelity-review` SKILL.md §8; body heading order `## Philosophy → ## Sources`). `docs/research/README.md` target-list row is `done (v1 body, embodiment: none)` with link. Ready for merge; merge is gated on human readability check per Task 5 Step 4, not on further automation.
+
+- **Disclosed deviation — fidelity-review execution model:** ADR-0002 (lines 72–75, Consequences) specifies the fidelity-review check as a Temper job running automatically on `UnderReview`. Phase 1 implemented it as a **dispatched skill** (`zygos-curation/agents/curator/skills/fidelity-review/SKILL.md`) executed by a human-dispatched general-purpose agent that re-fetches all pinned sources independently, not as an automatic Temper job. This is a confirmed, disclosed deviation per `temperpaw-findings.md` §21 and the plan's Task 4 notes — a Temper job with equivalent tool access was not yet designed at the level `docs/research/SKILL.md` §4 assumes. The deviation does not change the check's substance (adversarial, quote-verbatim, file-existence, Limits honesty) and is documented here as a pass/fail-relevant fact.
+
+### What worked as designed
+
+- **Entity and guards:** `zygos-commons` `HarnessSpec` with `Draft → UnderReview → Published → Archived`, `SubmitForReview` guard (all 13 section-completeness flags), `Publish` guard (`fidelity_review_passed`), and Cedar policies (curator writes in Draft, reviewer records fidelity in UnderReview, admin publishes) held throughout the seven review cycles without bypass.
+- **Synthesize-harness:** The skill's fetch-order and section-filling guidance produced a complete draft in one pass; the one defect class it introduced (stale layout list, imprecision in source attribution) was exactly the class fidelity-review is designed to catch.
+- **Publish export:** The fixed frontmatter/body mapping (Task 5 Step 1) rendered the markdown deterministically from entity fields; `status` (`projectStatus`, not the workflow `Status`) and date-only `verified_at` were the two mapping traps the table exists to prevent, and neither fired.
+- **Presence/judgment split:** ADR-0001's table became an actual guard and an actual adversarial check, both exercised with real findings.
+
+### What Task 1's investigation found that the plan didn't anticipate
+
+- **Text-field persistence defect:** A `Text`-typed entity field clobbered on write via the platform's parametric `set_field` effect was truncated to its type's default length handling; fixed in `zygos-commons` by switching to property-named params and verified live before the DeepSeek Harness draft. The plan assumed CSDL `Text` was unbounded prose; the investigation proved otherwise.
+- **Param-name exactness:** Bound-action param keys must exactly match CSDL PascalCase names (`Philosophy` not `philosophy`, `Section` not `section`); a single-key mismatch silently no-ops the write with a `Draft` echo but no field change. Caught when `fix4` used `Section` and verified with a re-fetch.
+- **Cedar principal shape for review actions:** `ReviseDraft`'s permit requires `principal is Agent && agent_type == reviewer` (not `admin`); the first two `ReviseDraft` attempts with `agent` alone and `admin` alone both returned `AuthorizationDenied` until the policy file was read.
+- **Fidelity-review noise floor:** Seven independent reviews on the same pinned corpus found `10 → 4 → 3 → 4 trivial → 1 trivial → 5 (1 false positive) → 4 → 0` findings. Rounds 4–7 were all presentation-level (letter case, ellipsis register, terminology); rounds 5 and 7 included inter-reviewer disagreement (round 5 cleared `trusts the model`, round 6 flagged it; round 7's MODERATE misquoted the Limits sentence it graded). The instrument converges to its own variance, not to zero — a clean `PASS` is gated on reviewer draw, not just spec quality.
+- **Branch divergence:** The `research/deepseek-harness` branch was cut before `zygos-curation` landed on `main`; extending the skill required `git checkout main -- <path>` and a two-commit split (harness+README vs skill).
+
+### Recommendation on Phase 2
+
+Based on what actually running Phase 1 taught (not on katagami's shape alone):
+
+- **Do next: backfill `exo.md` and `temper.md` into entities.** This is the natural Phase 2 opener the ADR deferred, and the export mapping now exists to prove round-trip fidelity. It also normalizes the two publication paths that currently coexist (hand-merged vs entity-backed) without yet requiring a taxonomy or discovery job. Cost is low; value is a single publication model.
+- **Defer the gallery UI.** Phase 1 confirmed the ADR's own rationale: a harness spec is prose and tables, and GitHub rendering of the markdown is already the browsing surface. No one — including the author — needed a gallery to read or review the DeepSeek Harness spec. Revisit only if a concrete browsing need emerges after the third spec is merged.
+- **Defer target-discovery automation.** The manual `docs/research/README.md` table (three targets, ~8.6k-tree scanned, one candidate — RLM — still `not-started`) is not yet a bottleneck. Automating discovery now would add a scheduler and a curation-direction fan-out before the bottleneck exists.
+- **Consider a taxonomy job only after the backfill.** `kind` and `axis` are currently author-asserted and stable (DeepSeek Harness: `kind: agent-harness`, `axis: [A]`). Automated classification is only worth building once there are enough entities to compare and a downstream consumer for the classification.
+
+In short: Phase 1 proved the pipeline can carry a real spec from Draft through adversarial review to a Published entity and a generated markdown file that matches the library's shape. The next highest-leverage step is closing the two-track publication model, not adding new tracks.
