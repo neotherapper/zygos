@@ -5,7 +5,7 @@
 | **exo** | agent-harness | Fully recursive self-editing agent + harness | done (v1 body, `embodiment: none`) | [`harnesses/exo.md`](harnesses/exo.md) |
 | **Temper** | agent-substrate | Formal verification of agent-authored capabilities — the only proved-before-running design on the list | done (v1 body, `embodiment: none`) | [`harnesses/temper.md`](harnesses/temper.md) |
 | **RLM** | inference-paradigm | Recursive context decomposition as an alternative to tool-calling entirely | not-started | — |
-| **DeepSeek Harness** | agent-harness | Plugin-composable architecture from a frontier lab; candidate third instance of "the log is the program" | not-started | — |
+| **DeepSeek Harness** | agent-harness | Plugin-composable architecture from a frontier lab; candidate third instance of "the log is the program" | done (v1 body, `embodiment: none`) | [`harnesses/deepseek-harness.md`](harnesses/deepseek-harness.md) |
 | **pi** | — | Named by the owner; exo's README places "Pi" alongside OpenClaw and Hermes as a personal-runtime-class harness, but does not identify a repo | blocked — needs disambiguation before research starts | — |
 
 Temper, RLM and DeepSeek Harness are chosen to bracket the design space — proved-before-running,

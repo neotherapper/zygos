@@ -1,0 +1,307 @@
+# HarnessSpec Entity — I/O Automaton Specification
+#
+# Lifecycle: Draft -> UnderReview -> Published -> Archived.
+# The SubmitForReview guard enforces all 13 section-completeness flags;
+# Publish enforces the fidelity review. Reconciles to plan
+# 2026-08-16-temper-backed-pipeline-phase1 Task 2.
+# Deviation (pre-authorized by the plan's Task 2 IOA note): the platform has no
+# set_bool_from_param effect, so RecordFidelityReview is split into
+# RecordFidelityReviewPassed / RecordFidelityReviewFailed.
+
+[automaton]
+name = "HarnessSpec"
+states = ["Draft", "UnderReview", "Published", "Archived"]
+initial = "Draft"
+
+# Draft, UnderReview, Published are waiting states — progression is driven by
+# the author and the reviewer. Archived is terminal.
+allow_indefinite_states = ["Draft", "UnderReview", "Published"]
+
+# --- State Variables ---
+
+[[state]]
+name = "has_identity"
+type = "bool"
+initial = "false"
+
+[[state]]
+name = "has_philosophy"
+type = "bool"
+initial = "false"
+
+[[state]]
+name = "has_primitives_section"
+type = "bool"
+initial = "false"
+
+[[state]]
+name = "has_loop"
+type = "bool"
+initial = "false"
+
+[[state]]
+name = "has_boundaries"
+type = "bool"
+initial = "false"
+
+[[state]]
+name = "has_verification"
+type = "bool"
+initial = "false"
+
+[[state]]
+name = "has_axis"
+type = "bool"
+initial = "false"
+
+[[state]]
+name = "has_economics"
+type = "bool"
+initial = "false"
+
+[[state]]
+name = "has_tradeoffs"
+type = "bool"
+initial = "false"
+
+[[state]]
+name = "has_what_to_steal"
+type = "bool"
+initial = "false"
+
+[[state]]
+name = "has_what_not_to"
+type = "bool"
+initial = "false"
+
+[[state]]
+name = "has_limits"
+type = "bool"
+initial = "false"
+
+[[state]]
+name = "has_sources"
+type = "bool"
+initial = "false"
+
+[[state]]
+name = "fidelity_review_passed"
+type = "bool"
+initial = "false"
+
+# --- Actions: Identity ---
+
+[[action]]
+name = "SetIdentity"
+kind = "input"
+from = ["Draft"]
+to = "Draft"
+params = ["Title", "Url", "ArtifactUrl", "Commit", "Language", "Kind", "License", "ProjectStatus", "Lifecycle", "Provenance", "VerifiedAt"]
+effect = [{ type = "set_bool", var = "has_identity", value = true }]
+hint = "Set the harness identity fields. Must be called before any section writes."
+
+# --- Actions: Section Writes ---
+
+[[action]]
+name = "WritePhilosophy"
+kind = "input"
+from = ["Draft"]
+to = "Draft"
+params = ["Philosophy"]
+effect = [{ type = "set_bool", var = "has_philosophy", value = true }]
+hint = "Write the Philosophy section (core rules, name-vs-thing trap, provenance, etc.)."
+
+[[action]]
+name = "WritePrimitivesSection"
+kind = "input"
+from = ["Draft"]
+to = "Draft"
+params = ["PrimitivesSection", "Primitives"]
+effect = [{ type = "set_bool", var = "has_primitives_section", value = true }]
+hint = "Write the Primitives section (table of primitives with columns) and set the primitives list."
+
+[[action]]
+name = "WriteLoop"
+kind = "input"
+from = ["Draft"]
+to = "Draft"
+params = ["Loop"]
+effect = [{ type = "set_bool", var = "has_loop", value = true }]
+hint = "Write the Loop section (how the harness executes)."
+
+[[action]]
+name = "WriteBoundaries"
+kind = "input"
+from = ["Draft"]
+to = "Draft"
+params = ["Boundaries"]
+effect = [{ type = "set_bool", var = "has_boundaries", value = true }]
+hint = "Write the Boundaries section (state inventory table). A table with a missing row is worse than no table."
+
+[[action]]
+name = "WriteVerification"
+kind = "input"
+from = ["Draft"]
+to = "Draft"
+params = ["Verification"]
+effect = [{ type = "set_bool", var = "has_verification", value = true }]
+hint = "Write the Verification section (rigor levels, what each method gives, gate analysis)."
+
+[[action]]
+name = "SetAxis"
+kind = "input"
+from = ["Draft"]
+to = "Draft"
+params = ["Axis", "WhichAxis"]
+effect = [{ type = "set_bool", var = "has_axis", value = true }]
+hint = "Set the structural axis (A, B, both, neither) and the which-axis analysis prose."
+
+[[action]]
+name = "WriteEconomics"
+kind = "input"
+from = ["Draft"]
+to = "Draft"
+params = ["Economics"]
+effect = [{ type = "set_bool", var = "has_economics", value = true }]
+hint = "Write the Economics section (cost model, adoption barriers, economics-as-point targets)."
+
+[[action]]
+name = "WriteTradeoffs"
+kind = "input"
+from = ["Draft"]
+to = "Draft"
+params = ["Tradeoffs"]
+effect = [{ type = "set_bool", var = "has_tradeoffs", value = true }]
+hint = "Write the Tradeoffs section (buys/pays list)."
+
+[[action]]
+name = "WriteWhatToSteal"
+kind = "input"
+from = ["Draft"]
+to = "Draft"
+params = ["WhatToSteal"]
+effect = [{ type = "set_bool", var = "has_what_to_steal", value = true }]
+hint = "Write the WhatToSteal section (numbered list of borrowable techniques)."
+
+[[action]]
+name = "WriteWhatNotTo"
+kind = "input"
+from = ["Draft"]
+to = "Draft"
+params = ["WhatNotTo"]
+effect = [{ type = "set_bool", var = "has_what_not_to", value = true }]
+hint = "Write the WhatNotTo section (bulleted list of anti-patterns to avoid)."
+
+[[action]]
+name = "SetEmbodiment"
+kind = "input"
+from = ["Draft"]
+to = "Draft"
+params = ["Embodiment", "EmbodimentSection"]
+hint = "Set the embodiment level (None, Partial, Full) and the honest trace text, if any."
+
+[[action]]
+name = "WriteLimits"
+kind = "input"
+from = ["Draft"]
+to = "Draft"
+params = ["Limits"]
+effect = [{ type = "set_bool", var = "has_limits", value = true }]
+hint = "Write the Limits section (what was not checked, known gaps). Mandatory and non-empty."
+
+[[action]]
+name = "WriteSources"
+kind = "input"
+from = ["Draft"]
+to = "Draft"
+params = ["Sources"]
+effect = [{ type = "set_bool", var = "has_sources", value = true }]
+hint = "Write the Sources section (sources table with URLs, commits, access dates)."
+
+# --- Actions: Lifecycle Transitions ---
+
+[[action]]
+name = "SubmitForReview"
+kind = "internal"
+from = ["Draft"]
+to = "UnderReview"
+guard = [
+  { type = "is_true", var = "has_identity" },
+  { type = "is_true", var = "has_philosophy" },
+  { type = "is_true", var = "has_primitives_section" },
+  { type = "is_true", var = "has_loop" },
+  { type = "is_true", var = "has_boundaries" },
+  { type = "is_true", var = "has_verification" },
+  { type = "is_true", var = "has_axis" },
+  { type = "is_true", var = "has_economics" },
+  { type = "is_true", var = "has_tradeoffs" },
+  { type = "is_true", var = "has_what_to_steal" },
+  { type = "is_true", var = "has_what_not_to" },
+  { type = "is_true", var = "has_limits" },
+  { type = "is_true", var = "has_sources" },
+]
+hint = "Submit the draft for review. Guarded by all 13 section-completeness flags."
+
+[[action]]
+name = "RecordFidelityReviewPassed"
+kind = "input"
+from = ["UnderReview"]
+to = "UnderReview"
+params = ["FidelityFindings"]
+effect = [{ type = "set_bool", var = "fidelity_review_passed", value = true }]
+hint = "Record that the fidelity review passed. (Split from RecordFidelityReview: no set_bool_from_param.)"
+
+[[action]]
+name = "RecordFidelityReviewFailed"
+kind = "input"
+from = ["UnderReview"]
+to = "UnderReview"
+params = ["FidelityFindings"]
+effect = [{ type = "set_bool", var = "fidelity_review_passed", value = false }]
+hint = "Record that the fidelity review failed. (Split from RecordFidelityReview: no set_bool_from_param.)"
+
+[[action]]
+name = "ReviseDraft"
+kind = "input"
+from = ["UnderReview"]
+to = "Draft"
+params = ["Reason"]
+effect = [{ type = "set_bool", var = "fidelity_review_passed", value = false }]
+hint = "Send a spec back to Draft for revision. Clears fidelity_review_passed."
+
+[[action]]
+name = "Publish"
+kind = "internal"
+from = ["UnderReview"]
+to = "Published"
+guard = [{ type = "is_true", var = "fidelity_review_passed" }]
+hint = "Publish the spec. Guarded by fidelity_review_passed."
+
+[[action]]
+name = "Revise"
+kind = "input"
+from = ["Published"]
+to = "UnderReview"
+params = ["Reason"]
+effect = [{ type = "set_bool", var = "fidelity_review_passed", value = false }]
+hint = "Send a published spec back to UnderReview for a new fidelity pass. Clears fidelity_review_passed."
+
+[[action]]
+name = "Archive"
+kind = "input"
+from = ["Draft", "UnderReview", "Published"]
+to = "Archived"
+params = ["Reason"]
+hint = "Archive the spec. Terminal state."
+
+# --- Safety Invariants ---
+
+[[invariant]]
+name = "PublishRequiresFidelityReview"
+when = ["Published"]
+assert = "fidelity_review_passed"
+
+[[invariant]]
+name = "ArchivedIsFinal"
+when = ["Archived"]
+assert = "no_further_transitions"
