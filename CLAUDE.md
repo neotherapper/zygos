@@ -102,3 +102,17 @@ not the content. Don't stack open questions — ask the one that blocks the next
 `pavlos` originates the research discipline this repo inherits; treat it as upstream and read-only —
 do not edit it from here. Nothing from any private repository flows into this one, in any form,
 regardless of how it is phrased or how thoroughly names are stripped.
+
+## Agent skills
+
+### Issue tracker
+
+Issues and specs live as GitHub issues, driven by the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five canonical triage roles map to same-named labels (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context — one `CONTEXT.md` + `docs/adrs/` at the repo root. See `docs/agents/domain.md`.
