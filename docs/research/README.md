@@ -2,11 +2,23 @@
 
 | Harness | `kind` | Why it's on the list | Status | Spec |
 |---|---|---|---|---|
-| **exo** | agent-harness | Fully recursive self-editing agent + harness | done (v1 body, `embodiment: none`) | [`harnesses/exo.md`](harnesses/exo.md) |
-| **Temper** | agent-substrate | Formal verification of agent-authored capabilities — the only proved-before-running design on the list | done (v1 body, `embodiment: none`) | [`harnesses/temper.md`](harnesses/temper.md) |
+| **exo** | agent-harness | Fully recursive self-editing agent + harness | done (v1 body, `embodiment: none`) | [`harnesses/exo.md`](harnesses/exo.md) — **two-track** ① |
+| **Temper** | agent-substrate | Formal verification of agent-authored capabilities — the only proved-before-running design on the list | done (v1 body, `embodiment: none`) | [`harnesses/temper.md`](harnesses/temper.md) — **two-track** ① |
 | **RLM** | inference-paradigm | Recursive context decomposition as an alternative to tool-calling entirely | done (v1 body, `embodiment: none`) | [`harnesses/rlm.md`](harnesses/rlm.md) |
 | **DeepSeek Harness** | agent-harness | Plugin-composable architecture from a frontier lab; candidate third instance of "the log is the program" | done (v1 body, `embodiment: none`) | [`harnesses/deepseek-harness.md`](harnesses/deepseek-harness.md) |
 | **pi** | — | Named by the owner; exo's README places "Pi" alongside OpenClaw and Hermes as a personal-runtime-class harness, but does not identify a repo | blocked — needs disambiguation before research starts | — |
+
+> ① **Two-track publication (2026-08-28, Phase 2 backfill).** Two publication paths coexist for exo
+> and temper: the hand-merged `harnesses/exo.md` / `harnesses/temper.md` (git-committed content authored
+> 2026-08-16) and the entity-backed versions published through the Phase 2 backfill (`HarnessSpec`
+> entities re-imported from the markdown and re-rendered). The re-rendered entity output is
+> byte-identical to the hand-merged file after whitespace normalization, except the inline `# comment`
+> lines in the hand-merged frontmatter, which the entity schema has no field to carry (the substantive
+> `axis`/`embodiment`/`status` justification lives in the body sections, which round-trip verbatim). See
+> `docs/adrs/0002-temper-backed-curation-pipeline.md` Addendum 2026-08-27 §"Recommendation on Phase 2"
+> and `docs/superpowers/plans/2026-08-28-backfill-phase1-specs-findings.md`. The hand-merged files
+> remain canonical until the backfill is verified and a deletion decision is made; deletion is a
+> separate decision per ADR-0002.
 
 Temper, RLM and DeepSeek Harness are chosen to bracket the design space — proved-before-running,
 recursive-self-editing (already covered by exo), everything-is-a-plugin — rather than sample it.
