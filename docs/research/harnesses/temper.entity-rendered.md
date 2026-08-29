@@ -5,15 +5,15 @@ url: https://github.com/nerdsane/temper
 artifact_url: https://github.com/nerdsane/temper/tree/2f43ecefaa00bf2e9d75c6b67c2ddf8857821400
 commit: 2f43ecefaa00bf2e9d75c6b67c2ddf8857821400
 language: Rust
-kind: agent-substrate               # its own README: "Not the runtime the agent runs in"
+kind: agent-substrate
 license: MIT / Apache-2.0
-status: pre-release                 # project's own words: "Version 0.1.0... API surface is not frozen"
+status: pre-release
 lifecycle: version-changing
 provenance: primary
 verified_at: 2026-08-16
-axis: [A]                           # A — prevention-primary, with a live rollback backstop. See "Which axis"
+axis: [A]
 primitives: [capability, spec, actor, event-journal, transition-table, cedar-policy, pending-decision, o-p-a-d-i-record, trajectory, gepa]
-embodiment: none                    # no hands-on run — see "Embodiment" and "Limits of this spec"
+embodiment: none
 ---
 
 # Temper

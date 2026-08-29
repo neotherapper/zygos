@@ -7,13 +7,13 @@ commit: 5bc77ce7c7a2921794083d58c926cf721c14bf8a
 language: Rust, TypeScript
 kind: agent-harness
 license: MIT
-status: early development      # project's own words: "still in the early stages of development"
+status: early development
 lifecycle: version-changing
 provenance: primary
 verified_at: 2026-08-16
-axis: [A]                      # A only, and partially — recoverability, not soundness. See "Which axis"
+axis: [A]
 primitives: [event-log, artifact, sandbox, snapshot-rewind, tool-registry, adapter, skill, binding-secret, guardian, scheduler, memory-store]
-embodiment: none               # no hands-on run — see "Embodiment" and "Limits of this spec"
+embodiment: none
 ---
 
 # exo
