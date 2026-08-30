@@ -17,8 +17,9 @@ Phase 1 findings (temperpaw-findings.md §21) that govern the write-back calls:
   `RecordFidelityReview` action is split into `RecordFidelityReviewPassed` / `RecordFidelityReviewFailed`
   on the platform (no parametric `set_bool` effect), so dispatch the one matching the verdict — `Passed`
   is a boolean, `Findings` is a string with one finding per line, `Reason` is a short string.
-- **Bound actions need an agent principal.** Send `Authorization: Bearer <key>` plus
-  `X-Temper-Principal-Kind: agent`. Review actions additionally need `X-Temper-Agent-Type: reviewer`.
+- **Bound actions need an agent principal.** Send `Authorization: Bearer $ZYGOS_KEY` plus
+  `X-Temper-Principal-Kind: agent` (`admin` for `Publish`/`Archive`). Review actions additionally need `X-Temper-Agent-Type: reviewer`.
+  The dev key is **not** hardcoded in the repo — it lives in the local shell as `$ZYGOS_KEY` (the same key `cargo run` in the TemperPaw checkout was started with). In an agent shell, run `echo ${ZYGOS_KEY:-missing}` — if `missing`, ask the human to `export ZYGOS_KEY=...` and re-try; do not invent a key or commit one.
 
 ## Steps
 
