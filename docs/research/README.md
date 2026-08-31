@@ -6,7 +6,7 @@
 | **Temper** | agent-substrate | Formal verification of agent-authored capabilities — the only proved-before-running design on the list | done (v1 body, `embodiment: none`) | [`harnesses/temper.md`](harnesses/temper.md) — **two-track** ① |
 | **RLM** | inference-paradigm | Recursive context decomposition as an alternative to tool-calling entirely | done (v1 body, `embodiment: none`) | [`harnesses/rlm.md`](harnesses/rlm.md) |
 | **DeepSeek Harness** | agent-harness | Plugin-composable architecture from a frontier lab; candidate third instance of "the log is the program" | done (v1 body, `embodiment: none`) | [`harnesses/deepseek-harness.md`](harnesses/deepseek-harness.md) |
-| **pi** | agent-harness | Named by the owner; exo's README places "Pi" alongside OpenClaw and Hermes as a personal-runtime-class harness. **Now resolved (2026-08-29):** Pi is **Earendil Inc's "Pi Coding Agent"** — a terminal-based coding agent at pi.dev, source at `github.com/earendil-works/pi` (harness in `packages/coding-agent`, npm `@earendil-works/pi-coding-agent`, MIT). Pinned below | not-started | — |
+| **pi** | agent-harness | Named by the owner; exo's README places "Pi" alongside OpenClaw and Hermes as a personal-runtime-class harness. **Now resolved (2026-08-29):** Pi is **Earendil Inc's "Pi Coding Agent"** — a terminal-based coding agent at pi.dev, source at `github.com/earendil-works/pi` (harness in `packages/coding-agent`, npm `@earendil-works/pi-coding-agent`, MIT). Pinned below | done (v1 body, `embodiment: none`) | [`harnesses/pi.md`](harnesses/pi.md) |
 
 > ① **Two-track publication (2026-08-28, Phase 2 backfill).** Two publication paths coexist for exo
 > and temper: the hand-merged `harnesses/exo.md` / `harnesses/temper.md` (git-committed content authored
