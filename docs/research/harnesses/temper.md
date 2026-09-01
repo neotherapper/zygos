@@ -91,8 +91,8 @@ no external documentation required, by the CSDL layer's own design intent.
 `docs/AGENT_GUIDE.md` states it as a fixed six-step cycle: *CONVERSE → GENERATE → VERIFY → REVIEW →
 ITERATE → DEPLOY.* *"The developer never writes specs by hand. They describe their domain through
 conversation."* Deploy has two paths: self-host (`temper codegen` → `cargo build` → operator deploys
-the binary) or platform-host (`temper serve --specs-dir`, or the `--app NAME=DIR` form that the CLI
-help at `ff0774f` says supersedes it). The documents say the serve command runs the full verification
+the binary) or platform-host (`temper serve --specs-dir`, which the CLI help at `ff0774f` marks
+*"legacy, use --app NAME=DIR"*). The documents say the serve command runs the full verification
 cascade at startup and refuses to serve unverified entities. The run recorded in Embodiment sharpened
 that: the server starts serving *before* user-spec verification finishes (`Loaded spec: Order
 (verification pending, lint clean)`, then `Verification: running in background`), and the refusal is
@@ -136,12 +136,12 @@ the closest analogue is process/actor restart, and the spec is explicit about th
 
 | State category | Survives actor crash / process restart? |
 |---|---|
-| Event journal (Postgres, or the default embedded libSQL file) | Yes — the durable record; actors rebuild state by replay. **Observed** (Embodiment rows 12–14): three events for one order, sequence 1–3, identical before and after a process restart, and the rebuilt actor enforces the same from-state rule. **Caveat at the original pin:** OData PATCH/PUT field updates skipped the journal until commit `cda632b` (upstream ADR-0157 "Journaled PATCH/PUT Field Updates", 2026-08-18), so at `2f43ece` a field update was lost on the next actor eviction or restart — ADR-0157's own words: *"every PATCH/PUT was silently lost the moment any of those ran."* Fixed fail-closed at `ff0774f`: an update that does not append is not acknowledged |
+| Event journal (Postgres, or the default embedded libSQL file) | Yes — the durable record; actors rebuild state by replay. **Observed** (Embodiment rows 12–14): three events for one order, sequence 1–3, identical before and after a process restart, and the rebuilt actor enforces the same from-state rule. **Caveat at the original pin:** OData PATCH/PUT field updates skipped the journal until commit `cda632b` (upstream ADR-0157 "Journaled PATCH/PUT Field Updates", dated 2026-07-12 in its header, landed on `main` in `cda632b` on 2026-08-18), so at `2f43ece` a field update was lost on the next actor eviction or restart — ADR-0157's own words: *"every PATCH/PUT was silently lost the moment any of those ran."* Fixed fail-closed at `ff0774f`: an update that does not append is not acknowledged |
 | Actor state (in-memory) | Rebuilt from journal + latest snapshot, not itself persisted |
 | In-flight mailbox messages (`tokio::mpsc`) | **No** — lost on crash. `docs/AGENT_GUIDE.md` states the mitigation directly: *"the HTTP caller gets a connection error... the caller retries — the actor is back at the last committed state"* |
 | Cedar policies | Yes — **observed**: five permits appended through the policy API were all present after restart |
 | Pending decisions | Yes — **observed**: the decision minted by a denied create was listed as pending after restart, same id, still un-approvable by its own subject |
-| Registered specs (transition tables) | **Depends on the path in, and this is not documented.** Specs the disk loader (`--app` / `--specs-dir`) persisted were restored at boot (`Restored 23 specs from Turso`). Specs pushed at runtime through `POST /api/specs/load-dir` were **not** there after restart on the default store: `crates/temper-server/src/observe/specs/load_dir.rs` persists *"when Postgres is configured"* and otherwise only registers in memory. Separately, specs loaded from disk into the `default` tenant were replaced at boot by the built-in agent specs (`crates/temper-cli/src/serve/bootstrap.rs` registers them into `default` with merge disabled), so `default` cannot hold user specs across a restart by either path. In both cases the entity journals survived; the table needed to fold them did not, until the spec was pushed again |
+| Registered specs (transition tables) | **Depends on the path in, and this is not documented.** Specs the disk loader (`--app` / `--specs-dir`) persisted were restored at boot (a preliminary boot on the shared store logged `Restored 36 specs from Turso` with `Order` among them). Specs pushed at runtime through `POST /api/specs/load-dir` were **not** there after restart: the route writes each spec row with `committed = 0` (`temper-store-turso/src/store/specs.rs`) and never calls `commit_specs`, and boot recovery deletes uncommitted rows first — the restart log's third line reads `deleted 3 uncommitted specs during startup recovery`. The disk path survives because tenant bootstrap ends with a tenant-wide `commit_specs` (`temper-platform/src/bootstrap.rs`: *"promote the tenant's spec set back to a durable committed state so restart recovery can actually see the rows"*). A comment in `load_dir.rs` says it persists *"when Postgres is configured"*; the function under it also writes to the embedded store, and the first version of this row trusted the comment — see Limits. Separately, specs loaded from disk into the `default` tenant were replaced at boot by the built-in agent specs (`temper-cli/src/serve/bootstrap.rs` registers them into `default` with merge disabled; a second preliminary boot showed `Orders` gone from `default` after this), so `default` cannot hold user specs across a restart by either path. In both cases the entity journals survived; the table needed to fold them did not, until the spec was pushed again |
 | Evolution records (O-P-A-D-I) | Yes — dual-written to Git and Postgres |
 | Trajectory / telemetry data | Yes — separate OTEL/ClickHouse store |
 
@@ -178,9 +178,9 @@ variable and finds nothing happens.
 **What gates vs what reports, stated precisely.** All four cascade levels (L0–L3) must pass before a
 spec deploys — enforced at the platform boundary for every user. The precise shape, from the run: `temper
 serve` loads the spec, runs the cascade in the background, and gates every dispatch on the result (see
-Loop); the project's own verify-temper notes add that a *failing* spec is not rejected at load either
-— it registers, fails, and *"blocks all dispatches on that type with 'Fix the spec and re-push' until a
-passing one lands."* The gate is real; "never loading them" was this spec's overstatement. A second, stricter enforcement point — a
+Loop); the project's own `.agents/skills/verify-temper/features/spec-hot-swap.md` adds that a *failing* spec
+is not rejected at load either — it registers, fails, and *"blocks all dispatches on that type with 'Fix
+the spec and re-push' until a passing one lands."* The gate is real; "never loading them" was this spec's overstatement. A second, stricter enforcement point — a
 blocking pre-commit-style hook, `ALL FOUR must pass → Edit allowed / ANY failure → Edit BLOCKED` — exists
 too, but `docs/HARNESS.md` scopes it explicitly to *"agents developing Temper itself (the framework)"*;
 an agent building an app *on* Temper gets the `temper serve`/`temper verify` gate by default and this
@@ -229,9 +229,10 @@ cannot (real production behavior in the first case, process failure in the secon
 
 **A third recovery point landed between the two pins.** Upstream ADR-0173 (accepted 2026-08-27, in the
 tree at `ff0774f`): the one shared Genesis app-install path now verifies that the installed root app is
-runtime-ready and every required WASM module compiles, and *"if it is not, and a previous good Genesis
-install exists, the install restores that previous version and returns an error; if there is no safe
-prior, it fails cleanly."* The routing is a pure decision function — `Commit | RollBackToPrevious |
+runtime-ready and every required WASM module compiles, and *"If it is
+not, and a previous good Genesis install exists, the install restores that previous version and
+returns an error; if there is no safe prior, it fails cleanly"* (the sentence continues with a
+parenthetical about the failed-install marker). The routing is a pure decision function — `Commit | RollBackToPrevious |
 FailNoRollback` — with a DST invariant (P18) behind it. That is the same composition as the hot-swap
 rollback, one layer up: at install rather than at swap. So the count is three at the current pin —
 install-time rollback, post-swap rollback, and journal replay — each scoped to what the gate before it
@@ -416,25 +417,30 @@ laptop. Kernel started as `temper serve --port 3100 --no-observe --storage turso
 `TEMPER_API_KEY` set and `TURSO_URL` pointing at a scratch file, following the project's own
 `.agents/skills/verify-temper/SKILL.md` isolation recipe. No Postgres, Docker, or Redis was running.
 Every request below carries `Authorization: Bearer <key>` and `X-Tenant-Id: default` unless the row
-says otherwise. The reference app is `reference-apps/ecommerce/specs` (Order, Payment, Shipment).
+says otherwise. The reference app is `reference-apps/ecommerce/specs` (Order, Payment, Shipment). Two
+preliminary boots preceded the trace, on the shared default store rather than the scratch file: one
+loading the app from disk as tenant `ecommerce` (specs loaded, but the operator key resolves only in
+`default`, so nothing could be dispatched), one loading it into `default` (specs persisted and restored
+at the next boot, then replaced by the built-in agent specs — the Boundaries row cites both). Rows 1
+and 2 were observed at the client; the server log does not record those responses.
 
 | # | Request | Observed | What it shows |
 |---|---|---|---|
-| 1 | `GET /healthz`; `GET /tdata/$metadata`, no key | 200; 200 with CSDL XML | Liveness and schema are the declared public routes |
-| 2 | `GET /tdata/Plans` with no key; again with the operator key | 401; 403 | Fail-closed edge (upstream ARN-170): no credential is denied as anonymous, a credential with no permit is denied by Cedar |
+| 1 | `GET /healthz`; `GET /tdata/$metadata`, no key | 200; 200 with CSDL XML (client-observed) | Liveness and schema are the declared public routes |
+| 2 | `GET /tdata/Plans` with no key; again with the operator key | 401 (client-observed); 403 (logged) | Fail-closed edge (upstream ARN-170): no credential is denied as anonymous, a credential with no permit is denied by Cedar |
 | 3 | `POST /api/specs/load-dir` for the reference specs, merge mode | 403 `no matching permit policy`, **no pending decision minted** | Management-plane denials for a sessionless principal stay plain 403s — `crates/temper-server/src/authz/helpers.rs`: *"Non-agent or sessionless denials stay ordinary `403 Forbidden` responses so passive/admin surfaces do not generate noisy approval work"* |
 | 4 | `POST /api/tenants/default/policies/rules`, appending a permit for `load_specs_from_directory` on `SpecDirectory` to the verified-operator principal | 200 `rule_added` | The bootstrap operator's one seeded permit is `manage_policies` (ADR-0172); the policy plane is the sanctioned way to widen it |
 | 5 | Row 3 again | 200, NDJSON stream: `specs_loaded` → `verification_started` / `verification_result` per entity → `summary all_passed: true`. Order: L0 11 guards satisfiable, 5 invariants inductive; L1 24 states; L2 5 seeds, 43 transitions; L3 100 cases | The cascade runs at load, streams, and is per entity. `$metadata` listed `Orders` only after this |
 | 6 | `POST /tdata/Orders` with `{"id":"ord-1","CustomerId":"cust-1"}` | 403, message ends `(decision: PD-…)` | Entity-plane denial **does** mint a pending decision, unlike row 3, for the same sessionless operator |
-| 7 | Append permits for the operator on `Order`, `Payment`, `Shipment`, `Customer`; retry row 6 | 409 `ConstraintViolation`: `relation target 'Customer' with id 'cust-1' not found` | Cross-entity relation integrity is checked on create |
+| 7 | Append permits for the operator on `Order`, `Payment`, `Shipment` (a fourth, on `Customer`, was added later for row 7b, which ran after row 12); retry row 6 | 409 `ConstraintViolation`: `relation target 'Customer' with id 'cust-1' not found (from Order.CustomerId)` | Cross-entity relation integrity is checked on create |
 | 7b | `POST /tdata/Customers` with `{"id":"cust-1"}` | 500 `No transition table for tenant 'default', entity type 'Customer'` | The reference app's CSDL declares `Customers` and `Products` with no IOA spec (the loader warns `csdl_missing_ioa_spec`), so an Order with a valid `CustomerId` cannot be created through the create path at all at this pin |
 | 8 | `POST /tdata/Orders('ord-1')/Temper.AddItem` with `{"ProductId":"sku-1","Quantity":2}` | 200; entity in `Draft`, `items: 1`, two events (`Created`, `AddItem`) | A dispatch on an id that was never created **spawned it at the initial state** (`get_or_spawn_tenant_actor` in `entity_ops.rs`); the spawned entity has no `CustomerId`, so row 7's check never ran |
 | 9 | `…/Temper.SubmitOrder` with `{"ShippingAddressId":"addr-1","PaymentMethod":"card"}` | 200; `Submitted`, three events | The transition the spec permits |
 | 10 | Row 9 again | 409 `Action 'SubmitOrder' not valid from state 'Submitted'` | From-state rejection by the transition table, not by application code |
 | 11 | `…/Orders('ord-2')/Temper.SubmitOrder` on an order with no items | 409 `Action 'SubmitOrder' blocked from state 'Draft': guard min_count on 'items' requires >= 1, found 0` | Guard rejection; the TOML guard `items > 0` compiled to a `min_count` check |
 | 12 | `GET /observe/entities/Order/ord-1/history` | 200; `Created`, `AddItem`, `SubmitOrder`, sequence 1–3, with params | The journal is the record |
-| 13 | Kill the process; restart on the same store; `GET /tdata/$metadata` | log `Restored 23 specs from Turso`; `Orders` **absent**; `GET …/Orders('ord-1')` → 404 `EntitySetNotFound`; row 12 still returns the three events, with `current_state: null` | Runtime-pushed specs do not survive restart on the default store — see Boundaries. The journal did |
-| 14 | Row 3 again (the permit from row 4 persisted); `GET …/Orders('ord-1')` | 200; `Submitted`, `total_event_count: 3`, `items: 1`, shipping fields intact; row 10 repeated → 409 | **Replay proof.** State rebuilt from the journal alone, and the from-state rule holds on the rebuilt actor |
+| 13 | Kill the process; restart on the same store; `GET /tdata/$metadata` | log `deleted 3 uncommitted specs during startup recovery`, then `Restored 23 specs from Turso` (the kernel's own); `Orders` **absent**; `GET …/Orders('ord-1')` → 404 `EntitySetNotFound`; row 12 still returns the three events, with `current_state: null` | Runtime-pushed specs do not survive restart on the default store — see Boundaries. The journal did |
+| 14 | Row 3 again (the permit from row 4 persisted); `GET …/Orders('ord-1')` | 200; `Submitted`, `total_event_count: 3`, `items: 1`, shipping fields intact; row 10 repeated → 409; server log: `state rebuilt from event journal via TransitionTable` for `ord-1`, `replayed: 3`, `status: Submitted` | **Replay proof.** State rebuilt from the journal alone, and the from-state rule holds on the rebuilt actor |
 | 15 | `POST …/decisions/PD-…/approve` with scope `this_agent / this_action / this_resource / always`; then `…/deny` | 403 both: `The denied principal cannot approve or deny this decision`; decision still `pending` | ADR-0172's self-approval ban, live |
 | 16 | `temper decide --port 3100 --tenant default`, 12 s, one decision pending | `Waiting for pending decisions...` and nothing else | The CLI polls `?status=Pending` while the store holds `pending`. The project tracks this as ARN-442 in `features/cedar-authz.md`. Reproduced here, not discovered |
 
@@ -472,8 +478,8 @@ recorded as observations at `ff0774f`, not as design intent, and none was raised
   directory; 164 unique numbers; 14 numbers carry more than one file; highest 0173 — were not read
   individually.** Counted with `git ls-tree` on a clone, the same method applied to the old pin (182
   entries, 180 numbered, 159 unique, highest 0165), so the two figures are comparable; the earlier
-  "14 numbers reused for 22 duplicate files" phrasing came from a different count and should not be
-  read against these. Six files were added between the pins: `0157-journaled-field-updates.md` (a
+  "14 numbers reused for 22 duplicate files" phrasing was wrong by this method (13 numbers, 21 extra
+  files at the old pin) — a third count error in this spec's history, recorded as such. Six files were added between the pins: `0157-journaled-field-updates.md` (a
   second file under an already-used number), `0160`, `0164`, `0166`, `0172`, `0173`. Of these, 0157,
   0172, and 0173 were read in their Context and Decision sections for this re-pin, because each bore
   on a claim in the body; 0160, 0164, and 0166 by title and opening lines only. An earlier draft of
@@ -502,7 +508,7 @@ recorded as observations at `ff0774f`, not as design intent, and none was raised
   benchmarks (Criterion hot-path figures, the 22 named DST tests, the two determinism proofs) were
   not reproduced and remain the project's reported results.
 
-- **Auth model not covered.** Upstream ARN-170 (merged 2026-08-14, before the original pin) replaced
+- **Auth model not covered.** Upstream ARN-170 (merged 2026-08-13 US time, 08-14 UTC, before the original pin) replaced
   header-asserted identity with a credential-bound request context, and ARN-255 (after the original
   pin) added trusted-issuer JWT verification. This spec describes neither beyond what the run touched:
   a bootstrap operator credential in the `default` tenant, a tenant header, and fail-closed 401/403.
@@ -573,6 +579,16 @@ recorded as observations at `ff0774f`, not as design intent, and none was raised
   and observed evidence on two others. Embodiment moved from `none` to `partial`. The method lesson is
   the first item: a state-inventory row needs its own source or observation, and this spec's original
   table had one row that had neither. Carried into `docs/research/SKILL.md` §6.
+
+- **The re-pin's own fidelity review (PR #10) caught a load-bearing error in the new material.** The
+  first version of the "registered specs" Boundaries row explained the restart loss by quoting a code
+  comment in `load_dir.rs` — *"Persist loaded specs first when Postgres is configured"* — that the
+  function beneath it contradicts (it writes to the embedded store too, uncommitted). The real cause
+  is in the restart log the author had already saved and not read to line three. A verbatim quote from
+  a primary source was still wrong about the thing, because the source was a comment about code, not
+  the code: the name-vs-thing trap, inside the repository itself. Also corrected: the ADR-0157 date
+  (header vs landing commit), the evidence line for disk-loaded spec survival, and the client-versus-
+  log provenance of Embodiment rows 1–2.
 
 ## Sources
 

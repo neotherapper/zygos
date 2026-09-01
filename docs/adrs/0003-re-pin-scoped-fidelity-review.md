@@ -17,7 +17,7 @@ Accepted.
   `main` was 18 commits ahead. No procedure existed for moving a spec's pin forward, and
   `docs/research/SKILL.md` §5 did not list the gap.
 - Between the two pins, the five documents the spec quotes were byte-identical (`git diff` on a clone
-  returned nothing for them). Six ADRs, a distilled `AGENTS.md`, and a twelve-file self-verification
+  returned nothing for them). Six ADRs, a distilled `AGENTS.md`, and a fifteen-file self-verification
   skill were new. A full §4 fidelity review would re-verify roughly forty quotes that could not have
   drifted, spending reviewer attention that should go to the new material.
 - The "nothing drifted" claim is exactly the kind a presence check would wave through (ADR-0001). If
