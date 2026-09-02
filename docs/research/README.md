@@ -3,7 +3,7 @@
 | Harness | `kind` | Why it's on the list | Status | Spec |
 |---|---|---|---|---|
 | **exo** | agent-harness | Fully recursive self-editing agent + harness | done (v1 body, `embodiment: none`) | [`harnesses/exo.md`](harnesses/exo.md) — **two-track** ① |
-| **Temper** | agent-substrate | Formal verification of agent-authored capabilities — the only proved-before-running design on the list | done (v1 body, `embodiment: none`) | [`harnesses/temper.md`](harnesses/temper.md) — **two-track** ① |
+| **Temper** | agent-substrate | Formal verification of agent-authored capabilities — the only proved-before-running design on the list | done (v1 body, `embodiment: partial`; re-pinned 2026-09-02) | [`harnesses/temper.md`](harnesses/temper.md) — **two-track** ① |
 | **RLM** | inference-paradigm | Recursive context decomposition as an alternative to tool-calling entirely | done (v1 body, `embodiment: none`) | [`harnesses/rlm.md`](harnesses/rlm.md) |
 | **DeepSeek Harness** | agent-harness | Plugin-composable architecture from a frontier lab; candidate third instance of "the log is the program" | done (v1 body, `embodiment: none`) | [`harnesses/deepseek-harness.md`](harnesses/deepseek-harness.md) |
 | **pi** | agent-harness | Named by the owner; exo's README places "Pi" alongside OpenClaw and Hermes as a personal-runtime-class harness. **Now resolved (2026-08-29):** Pi is **Earendil Inc's "Pi Coding Agent"** — a terminal-based coding agent at pi.dev, source at `github.com/earendil-works/pi` (harness in `packages/coding-agent`, npm `@earendil-works/pi-coding-agent`, MIT). Pinned below | done (v1 body, `embodiment: none`) | [`harnesses/pi.md`](harnesses/pi.md) |
@@ -39,7 +39,7 @@ target. All confirmed to resolve (`curl -sI` against raw.githubusercontent.com):
 
 | Harness | Repo | SHA | Resolved? |
 |---|---|---|---|
-| Temper | `nerdsane/temper` | `2f43ecefaa00bf2e9d75c6b67c2ddf8857821400` | ✅ 2026-08-16 |
+| Temper | `nerdsane/temper` | `ff0774f572197a75987f3329b48553ae9f8b3c29` | ✅ 2026-09-02 (re-pin; first pin `2f43ecefaa00bf2e9d75c6b67c2ddf8857821400` ✅ 2026-08-16) |
 | RLM | `alexzhang13/rlm` | `caf0bffa1acec17c062559433b4cd4ed92eee3d6` | ✅ 2026-08-16 |
 | DeepSeek Harness | `deepseek-ai/deepseek-harness` | `47f943859bef60e4160492346772ded9b24f765a` | ✅ 2026-08-16 |
 | pi | `earendil-works/pi` | `853a80d26c90a14c1886f0ebb8ffaae133ca2185` | ✅ 2026-08-29 |

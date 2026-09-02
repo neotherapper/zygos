@@ -121,3 +121,34 @@ highest-value check in this whole procedure.
 - What changes about this procedure once `docs/concepts/` has its first real entry — concept-document
   research likely needs its own version of §4's fidelity check, scoped to "does every cited occurrence
   still say what the concept document claims," and that hasn't been written yet either.
+
+## 6. Re-pinning an existing spec
+
+A spec with `lifecycle: version-changing` falls behind its subject. Moving the pin is a research pass
+with a narrower fetch order, not a rewrite. See `docs/adrs/0003-re-pin-scoped-fidelity-review.md` for
+the review rule this procedure feeds.
+
+1. **Pin the SHA you read, not the one someone else pinned.** Upstream head at the time of the pass
+   unless a specific reason says otherwise. Confirm it resolves exactly as §0 does for a first pin.
+2. **Diff the cited sources between pins before reading anything else.** On a clone:
+   `git diff <old> <new> -- <every file in the spec's Sources table>`. Files that come back unchanged
+   keep their quotes. Files that changed are re-read in full. Record the command and result in the
+   spec's Sources section — it is the claim the fidelity reviewer must independently repeat.
+3. **Read what is new, not only what changed.** The commit log between pins, every new ADR (Context and
+   Decision at minimum), and any self-verification material the project added. Check each new decision
+   against the body for a claim it sharpens or contradicts. Recount every count-claim (ADR totals, file
+   totals) with a stated method, every time — they have been wrong twice in this spec already.
+4. **Re-check the Boundaries state-inventory table row by row.** A re-pin is where a row that was
+   inferred rather than sourced gets caught. Temper's PATCH/PUT row (upstream ADR-0157) was one: the
+   documents never said field updates were journaled; the spec extended "transitions are journaled" to
+   all writes on its own. Every row needs a source or an observation of its own.
+5. **If `FORMAT.md` §4.3's promotion criterion is now met, the pass includes a run.** Build at the new
+   pin, drive the project's own smallest documented task, write Embodiment from the trace, and use the
+   run to re-test the Boundaries table under a real restart. Two of Temper's Boundaries rows only
+   became visible that way.
+6. **Frontmatter and links.** `commit`, `artifact_url`, `verified_at`, every pinned link in Sources,
+   and `embodiment` if it changed. Add a dated bullet to Limits saying what the re-pin changed and why.
+   Update the pinned-SHA table in `README.md` with both dates; leave the body version alone.
+7. **Branch `research/<slug>-repin`, PR, fidelity review** exactly as §4, scoped per ADR-0003: the
+   reviewer repeats step 2's diff first, then reviews new and changed claims in full.
+

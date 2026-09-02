@@ -93,6 +93,15 @@ outright, which is exactly what happened once already (`temper.md`, PR #1) befor
 a named, required part of the process.
 _Avoid_: "review" alone, which doesn't distinguish this from a presence check or a casual read-through.
 
+**re-pin**:
+Moving an existing spec's pinned commit forward. Diff every cited source between the two pins; re-read
+the ones that changed and carry the rest forward; read what is new (commits, ADRs, self-verification
+material); fold the result into the body; update `verified_at` and every pinned link; then run a
+fidelity review scoped per `docs/adrs/0003`.
+Distinct from **fidelity review**, which checks the draft against its pinned sources: a re-pin checks
+the pinned sources against the world. Procedure in `docs/research/SKILL.md` §6.
+_Avoid_: "refresh" (sounds like a link check) and "update" (says nothing about what was re-read).
+
 **target list**:
 The table in `docs/research/README.md` — one row per harness, `kind`, a pinned commit SHA, and a status
 (`not-started` / `done` / `blocked`). A row is not a spec; it's the queue entry that becomes one.

@@ -2,18 +2,18 @@
 name: temper
 title: "Temper"
 url: https://github.com/nerdsane/temper
-artifact_url: https://github.com/nerdsane/temper/tree/2f43ecefaa00bf2e9d75c6b67c2ddf8857821400
-commit: 2f43ecefaa00bf2e9d75c6b67c2ddf8857821400
+artifact_url: https://github.com/nerdsane/temper/tree/ff0774f572197a75987f3329b48553ae9f8b3c29
+commit: ff0774f572197a75987f3329b48553ae9f8b3c29
 language: Rust
 kind: agent-substrate               # its own README: "Not the runtime the agent runs in"
 license: MIT / Apache-2.0
 status: pre-release                 # project's own words: "Version 0.1.0... API surface is not frozen"
 lifecycle: version-changing
 provenance: primary
-verified_at: 2026-08-16
+verified_at: 2026-09-02
 axis: [A]                           # A — prevention-primary, with a live rollback backstop. See "Which axis"
 primitives: [capability, spec, actor, event-journal, transition-table, cedar-policy, pending-decision, o-p-a-d-i-record, trajectory, gepa]
-embodiment: none                    # no hands-on run — see "Embodiment" and "Limits of this spec"
+embodiment: partial                 # built and run locally at the pinned commit, one reference app — see "Embodiment"
 ---
 
 # Temper
@@ -91,9 +91,15 @@ no external documentation required, by the CSDL layer's own design intent.
 `docs/AGENT_GUIDE.md` states it as a fixed six-step cycle: *CONVERSE → GENERATE → VERIFY → REVIEW →
 ITERATE → DEPLOY.* *"The developer never writes specs by hand. They describe their domain through
 conversation."* Deploy has two paths: self-host (`temper codegen` → `cargo build` → operator deploys
-the binary) or platform-host (`temper serve --specs-dir` — the serve command itself runs the full
-verification cascade at startup — invalid specs are rejected at startup and the server refuses to
-serve unverified entities).
+the binary) or platform-host (`temper serve --specs-dir`, which the CLI help at `ff0774f` marks
+*"legacy, use --app NAME=DIR"*). The documents say the serve command runs the full verification
+cascade at startup and refuses to serve unverified entities. The run recorded in Embodiment sharpened
+that: the server starts serving *before* user-spec verification finishes (`Loaded spec: Order
+(verification pending, lint clean)`, then `Verification: running in background`), and the refusal is
+per request, not at startup — a dispatch on an entity type whose status is still pending or running is
+rejected by the verification gate in `crates/temper-server/src/state/entity_ops.rs` until the cascade
+reports every level passed. The kernel's own system-tenant specs are the exception: those are verified
+synchronously at boot and a failure there is an assertion, not a gate.
 
 **Evolution loop (production feeds the next spec).** A sentinel actor observes an anomaly →
 O-Record → P-Record (formal problem statement) → A-Record (solution options with a spec diff and risk
@@ -130,17 +136,22 @@ the closest analogue is process/actor restart, and the spec is explicit about th
 
 | State category | Survives actor crash / process restart? |
 |---|---|
-| Event journal (Postgres) | Yes — the durable record; actors rebuild state by replay |
+| Event journal (Postgres, or the default embedded libSQL file) | Yes — the durable record; actors rebuild state by replay. **Observed** (Embodiment rows 12–14): three events for one order, sequence 1–3, identical before and after a process restart, and the rebuilt actor enforces the same from-state rule. **Caveat at the original pin:** OData PATCH/PUT field updates skipped the journal until commit `cda632b` (upstream ADR-0157 "Journaled PATCH/PUT Field Updates", dated 2026-07-12 in its header, landed on `main` in `cda632b` on 2026-08-18), so at `2f43ece` a field update was lost on the next actor eviction or restart — ADR-0157's own words: *"every PATCH/PUT was silently lost the moment any of those ran."* Fixed fail-closed at `ff0774f`: an update that does not append is not acknowledged |
 | Actor state (in-memory) | Rebuilt from journal + latest snapshot, not itself persisted |
 | In-flight mailbox messages (`tokio::mpsc`) | **No** — lost on crash. `docs/AGENT_GUIDE.md` states the mitigation directly: *"the HTTP caller gets a connection error... the caller retries — the actor is back at the last committed state"* |
-| Cedar policies | Yes — hot-loaded and, by the same durability argument applied to specs generally, not re-derived per restart |
+| Cedar policies | Yes — **observed**: five permits appended through the policy API were all present after restart |
+| Pending decisions | Yes — **observed**: the decision minted by a denied create was listed as pending after restart, same id, still un-approvable by its own subject |
+| Registered specs (transition tables) | **Depends on the path in, and this is not documented.** Specs the disk loader (`--app` / `--specs-dir`) persisted were restored at boot (a preliminary boot on the shared store logged `Restored 36 specs from Turso` with `Order` among them). Specs pushed at runtime through `POST /api/specs/load-dir` were **not** there after restart: the route writes each spec row with `committed = 0` (`temper-store-turso/src/store/specs.rs`) and never calls `commit_specs`, and boot recovery deletes uncommitted rows first — the restart log's third line reads `deleted 3 uncommitted specs during startup recovery`. The disk path survives because tenant bootstrap ends with a tenant-wide `commit_specs` (`temper-platform/src/bootstrap.rs`: *"promote the tenant's spec set back to a durable committed state so restart recovery can actually see the rows"*). A comment in `load_dir.rs` says it persists *"when Postgres is configured"*; the function under it also writes to the embedded store, and the first version of this row trusted the comment — see Limits. Separately, specs loaded from disk into the `default` tenant were replaced at boot by the built-in agent specs (`temper-cli/src/serve/bootstrap.rs` registers them into `default` with merge disabled; a second preliminary boot showed `Orders` gone from `default` after this), so `default` cannot hold user specs across a restart by either path. In both cases the entity journals survived; the table needed to fold them did not, until the spec was pushed again |
 | Evolution records (O-P-A-D-I) | Yes — dual-written to Git and Postgres |
 | Trajectory / telemetry data | Yes — separate OTEL/ClickHouse store |
 
-Exactly one row is explicitly named as lossy, and the project states the mitigation in the same breath
+The project names exactly one row as lossy (the mailbox) and states the mitigation in the same breath
 rather than leaving it implicit — the same shape as exo's "no (that is the point)" annotation on its
 one non-surviving row, arrived at for a different reason (an at-least-once-retry contract, not a
-designed reset).
+designed reset). The run added a second lossy row the documents do not name — runtime-pushed specs on
+the default store — and it is the more surprising one, because the journal underneath it is intact and
+the entity simply becomes unreadable until its spec is registered again. Nothing in the read material
+warns an operator of this.
 
 **Blast radius / autonomy gradient.** Authorization is default-deny; every unpermitted action becomes a
 pending decision, not a silent failure. Human approval is required for any spec change that alters
@@ -161,12 +172,15 @@ variable and finds nothing happens.
 |---|---|---|
 | Observability-driven feedback | **Yes, gated** | GEPA replays trajectories, proposes spec diffs via the O-P-A-D-I chain — but a destructive diff requires a human D-Record before it deploys. Non-destructive optimizer output is gated by risk tier and a `SafetyChecker`, not applied unconditionally |
 | Shadow evaluation | **Yes, gates a hot-swap** | `shadow_test` runs a suite of test cases against *both* the old and new `TransitionTable` before a Tier-3 overlay swap; any mismatch is a `Mismatch`, and the swap proceeds *"only if the `ShadowResult` reports zero mismatches (or the mismatches are explicitly expected)."` This is the exact "canary path — run the changed build against a clone and compare before adopting on the live instance" that exo's own spec names as a gap it doesn't have |
-| Deterministic simulation testing | **Yes, gates** | Level 2 of the cascade: seeded xorshift64 PRNG, a tick-based `SimScheduler`, three fault profiles (`none`/`light`/`heavy` — up to 30% delay, 5% drop, 2% crash). Reproducible by seed. Runs pre-deploy as part of the cascade, and separately as the project's own *development* methodology (DST-first, per the dev-harness docs) |
+| Deterministic simulation testing | **Yes, gates** | Level 2 of the cascade: seeded xorshift64 PRNG, a tick-based `SimScheduler`, three fault profiles (`none`/`light`/`heavy` — up to 30% delay, 5% drop, 2% crash). Reproducible by seed. Runs pre-deploy as part of the cascade, and separately as the project's own *development* methodology (DST-first, per the dev-harness docs). Scope note from `.agents/skills/verify-temper/features/spec-cascade.md` at `ff0774f`: an actor-level simulation level (L2b, driving the real `TransitionTable::evaluate()`) is *"defined but not wired into the CLI/platform cascade today"*; actor-level DST coverage lives in thirteen standalone `dst_*` test suites instead. So the cascade a user's spec passes at load is L0–L3 at the model level, not the production dispatch path |
 | Formal specification | **Yes, gates** | Level 0 (Z3 SMT: guard satisfiability, invariant induction, unreachable-state detection) and Level 1 (Stateright: exhaustive BFS over the bounded state space, safety + liveness properties, counterexample traces) |
 
 **What gates vs what reports, stated precisely.** All four cascade levels (L0–L3) must pass before a
-spec deploys — enforced at the platform boundary for every user (`temper serve` runs the cascade at
-startup and rejects invalid specs, never loading them). A second, stricter enforcement point — a
+spec deploys — enforced at the platform boundary for every user. The precise shape, from the run: `temper
+serve` loads the spec, runs the cascade in the background, and gates every dispatch on the result (see
+Loop); the project's own `.agents/skills/verify-temper/features/spec-hot-swap.md` adds that a *failing* spec
+is not rejected at load either — it registers, fails, and *"blocks all dispatches on that type with 'Fix
+the spec and re-push' until a passing one lands."* The gate is real; "never loading them" was this spec's overstatement. A second, stricter enforcement point — a
 blocking pre-commit-style hook, `ALL FOUR must pass → Edit allowed / ANY failure → Edit BLOCKED` — exists
 too, but `docs/HARNESS.md` scopes it explicitly to *"agents developing Temper itself (the framework)"*;
 an agent building an app *on* Temper gets the `temper serve`/`temper verify` gate by default and this
@@ -212,6 +226,26 @@ So Temper actually has recovery at two distinct points: a live rollback for a sp
 production despite passing every pre-ship gate, and event replay for infrastructure crashes unrelated
 to spec correctness. Neither substitutes for the cascade; both catch what the cascade structurally
 cannot (real production behavior in the first case, process failure in the second).
+
+**A third recovery point landed between the two pins.** Upstream ADR-0173 (accepted 2026-08-27, in the
+tree at `ff0774f`): the one shared Genesis app-install path now verifies that the installed root app is
+runtime-ready and every required WASM module compiles, and *"If it is
+not, and a previous good Genesis install exists, the install restores that previous version and
+returns an error; if there is no safe prior, it fails cleanly"* (the sentence continues with a
+parenthetical about the failed-install marker). The routing is a pure decision function — `Commit | RollBackToPrevious |
+FailNoRollback` — with a DST invariant (P18) behind it. That is the same composition as the hot-swap
+rollback, one layer up: at install rather than at swap. So the count is three at the current pin —
+install-time rollback, post-swap rollback, and journal replay — each scoped to what the gate before it
+cannot see.
+
+**The human gate hardened too.** Upstream ADR-0172 (accepted 2026-08-20) seeds the bootstrap operator
+exactly one permit, `manage_policies` on its tenant's `PolicySet`, and bans self-approval: *"the
+approve/deny handlers refuse to let the subject of the denial walk through it for that decision."*
+Observed (Embodiment row 15): the operator's own denied create became a pending decision, and the
+operator's approve and deny calls on it both returned `403` with `The denied principal cannot approve
+or deny this decision`. The decision stayed pending. That closes a hole this spec's Boundaries
+paragraph ("every unpermitted action becomes a pending decision") had not asked about: whether the
+principal that triggered the decision could also settle it.
 
 This still bears on the open question pavlos's own research raised across specs — are prevention and
 recovery opposed, or complementary? — but the answer this spec now supports is narrower and more
@@ -371,34 +405,88 @@ gap specific to these two projects or absent from the field's early designs gene
 
 ## Embodiment
 
-`embodiment: none`. Temper was not installed or run; nothing here is this spec's own behavioral
-evidence. Unlike exo, though, the project's own material includes a real, methodologically-disclosed
-evaluation: Criterion benchmarks (100 samples) for the transition-table hot path (28ns–16μs range) and
-full-stack agent-checkout latency (461μs in-memory; 17.7ms with Postgres persistence, ~2,200 persisted
-actions/sec at 100 concurrent checkouts), 22 named DST tests including two determinism-reproducibility
-proofs across ten runs, and three specific guard-resolution bugs the project's own DST-first process
-caught before they would have shipped. That is stronger evidentiary standing than exo's spec had —
-but it is still the project's own reported results, not independently reproduced here, and is recorded
-as such rather than as this spec's own finding. Per `FORMAT.md` §4.3, Embodiment stays optional until
-four or more specs exist in the library or a claim here depends on a run to confirm; neither condition
-is met.
+`embodiment: partial`. Temper was built from source and run locally at the pinned commit `ff0774f`
+with one reference app, one tenant, and the default embedded libSQL store. The run exercised the auth
+edge, runtime spec verification, the state machine's guard and from-state rejections, the journal
+across a process restart, the policy plane, and the pending-decision flow. It did not exercise hot swap
+of a live table, WASM application logic, the evolution loop, the Postgres or Redis backends, or any
+DST suite — see the last paragraph and Limits.
+
+**Setup.** `cargo build -p temper-cli` on the pinned toolchain (`nightly-2026-02-08`); 2m19s on a
+laptop. Kernel started as `temper serve --port 3100 --no-observe --storage turso` with
+`TEMPER_API_KEY` set and `TURSO_URL` pointing at a scratch file, following the project's own
+`.agents/skills/verify-temper/SKILL.md` isolation recipe. No Postgres, Docker, or Redis was running.
+Every request below carries `Authorization: Bearer <key>` and `X-Tenant-Id: default` unless the row
+says otherwise. The reference app is `reference-apps/ecommerce/specs` (Order, Payment, Shipment). Two
+preliminary boots preceded the trace, on the shared default store rather than the scratch file: one
+loading the app from disk as tenant `ecommerce` (specs loaded, but the operator key resolves only in
+`default`, so nothing could be dispatched), one loading it into `default` (specs persisted and restored
+at the next boot, then replaced by the built-in agent specs — the Boundaries row cites both). Rows 1
+and 2 were observed at the client; the server log does not record those responses.
+
+| # | Request | Observed | What it shows |
+|---|---|---|---|
+| 1 | `GET /healthz`; `GET /tdata/$metadata`, no key | 200; 200 with CSDL XML (client-observed) | Liveness and schema are the declared public routes |
+| 2 | `GET /tdata/Plans` with no key; again with the operator key | 401 (client-observed); 403 (logged) | Fail-closed edge (upstream ARN-170): no credential is denied as anonymous, a credential with no permit is denied by Cedar |
+| 3 | `POST /api/specs/load-dir` for the reference specs, merge mode | 403 `no matching permit policy`, **no pending decision minted** | Management-plane denials for a sessionless principal stay plain 403s — `crates/temper-server/src/authz/helpers.rs`: *"Non-agent or sessionless denials stay ordinary `403 Forbidden` responses so passive/admin surfaces do not generate noisy approval work"* |
+| 4 | `POST /api/tenants/default/policies/rules`, appending a permit for `load_specs_from_directory` on `SpecDirectory` to the verified-operator principal | 200 `rule_added` | The bootstrap operator's one seeded permit is `manage_policies` (ADR-0172); the policy plane is the sanctioned way to widen it |
+| 5 | Row 3 again | 200, NDJSON stream: `specs_loaded` → `verification_started` / `verification_result` per entity → `summary all_passed: true`. Order: L0 11 guards satisfiable, 5 invariants inductive; L1 24 states; L2 5 seeds, 43 transitions; L3 100 cases | The cascade runs at load, streams, and is per entity. `$metadata` listed `Orders` only after this |
+| 6 | `POST /tdata/Orders` with `{"id":"ord-1","CustomerId":"cust-1"}` | 403, message ends `(decision: PD-…)` | Entity-plane denial **does** mint a pending decision, unlike row 3, for the same sessionless operator |
+| 7 | Append permits for the operator on `Order`, `Payment`, `Shipment` (a fourth, on `Customer`, was added later for row 7b, which ran after row 12); retry row 6 | 409 `ConstraintViolation`: `relation target 'Customer' with id 'cust-1' not found (from Order.CustomerId)` | Cross-entity relation integrity is checked on create |
+| 7b | `POST /tdata/Customers` with `{"id":"cust-1"}` | 500 `No transition table for tenant 'default', entity type 'Customer'` | The reference app's CSDL declares `Customers` and `Products` with no IOA spec (the loader warns `csdl_missing_ioa_spec`), so an Order with a valid `CustomerId` cannot be created through the create path at all at this pin |
+| 8 | `POST /tdata/Orders('ord-1')/Temper.AddItem` with `{"ProductId":"sku-1","Quantity":2}` | 200; entity in `Draft`, `items: 1`, two events (`Created`, `AddItem`) | A dispatch on an id that was never created **spawned it at the initial state** (`get_or_spawn_tenant_actor` in `entity_ops.rs`); the spawned entity has no `CustomerId`, so row 7's check never ran |
+| 9 | `…/Temper.SubmitOrder` with `{"ShippingAddressId":"addr-1","PaymentMethod":"card"}` | 200; `Submitted`, three events | The transition the spec permits |
+| 10 | Row 9 again | 409 `Action 'SubmitOrder' not valid from state 'Submitted'` | From-state rejection by the transition table, not by application code |
+| 11 | `…/Orders('ord-2')/Temper.SubmitOrder` on an order with no items | 409 `Action 'SubmitOrder' blocked from state 'Draft': guard min_count on 'items' requires >= 1, found 0` | Guard rejection; the TOML guard `items > 0` compiled to a `min_count` check |
+| 12 | `GET /observe/entities/Order/ord-1/history` | 200; `Created`, `AddItem`, `SubmitOrder`, sequence 1–3, with params | The journal is the record |
+| 13 | Kill the process; restart on the same store; `GET /tdata/$metadata` | log `deleted 3 uncommitted specs during startup recovery`, then `Restored 23 specs from Turso` (the kernel's own); `Orders` **absent**; `GET …/Orders('ord-1')` → 404 `EntitySetNotFound`; row 12 still returns the three events, with `current_state: null` | Runtime-pushed specs do not survive restart on the default store — see Boundaries. The journal did |
+| 14 | Row 3 again (the permit from row 4 persisted); `GET …/Orders('ord-1')` | 200; `Submitted`, `total_event_count: 3`, `items: 1`, shipping fields intact; row 10 repeated → 409; server log: `state rebuilt from event journal via TransitionTable` for `ord-1`, `replayed: 3`, `status: Submitted` | **Replay proof.** State rebuilt from the journal alone, and the from-state rule holds on the rebuilt actor |
+| 15 | `POST …/decisions/PD-…/approve` with scope `this_agent / this_action / this_resource / always`; then `…/deny` | 403 both: `The denied principal cannot approve or deny this decision`; decision still `pending` | ADR-0172's self-approval ban, live |
+| 16 | `temper decide --port 3100 --tenant default`, 12 s, one decision pending | `Waiting for pending decisions...` and nothing else | The CLI polls `?status=Pending` while the store holds `pending`. The project tracks this as ARN-442 in `features/cedar-authz.md`. Reproduced here, not discovered |
+
+**What the run did not do.** No WASM module was triggered (the reference Order spec declares none). No
+hot swap of a live table — row 14 re-registered a spec into an empty slot, which is registration, not
+a swap under live actors. No evolution loop, no GEPA, no trajectory analysis beyond noticing that every
+denied request wrote a `trajectory.store.write` log line. Only the `turso` store and the in-process
+`legacy` actor runtime; the project's own notes say the declared key index is *not* maintained on
+turso, so nothing here speaks to the keyed-absence guarantee. No DST suite was run; every number under
+"deterministic simulation testing" remains the project's own. One tenant, one principal; the
+non-default-tenant credential path and the trusted-issuer JWT path were not touched.
+
+**Three things the run found that the documents do not say.** (1) A dispatch on an unknown entity id
+creates the entity, without the create path's field validation (rows 7–8). (2) Specs pushed at runtime
+are lost on restart on the default store while their journals persist (row 13). (3) The bundled
+ecommerce reference app cannot create an Order through the create path at all (row 7b). All three are
+recorded as observations at `ff0774f`, not as design intent, and none was raised with the maintainers.
 
 ## Limits of this spec
 
-- **Source read, code not read.** Every claim comes from `README.md`, `docs/PAPER.md` (read in full),
+- **Documents read in full, code read in part, for the run only.** Every claim in Philosophy, Primitives,
+  Loop, and the analytical sections comes from `README.md`, `docs/PAPER.md` (read in full),
   `docs/POSITIONING.md` (read in full), and the sections of `docs/AGENT_GUIDE.md` covering core
-  concepts, observability, JIT optimization, and anti-patterns (§1, §8, §12, §16). The Rust
-  implementation itself was not read. Whether the code matches the documentation — the same question
-  that produced exo's central finding — is unchecked here.
+  concepts, observability, JIT optimization, and anti-patterns (§1, §8, §12, §16). For the re-pin and
+  the run, these implementation files were read in part, only far enough to explain an observation:
+  `temper-platform/src/bearer_auth.rs`, `temper-cli/src/serve/bootstrap.rs`,
+  `temper-server/src/state/entity_ops.rs` (the verification gate and the spawn-on-dispatch path),
+  `temper-server/src/authz/helpers.rs`, `temper-server/src/observe/specs/load_dir.rs`,
+  `temper-platform/src/tenant_api.rs`, `temper-server/src/api/policies.rs`,
+  `temper-platform/src/operator_manage_policies.rs`, `temper-authz/src/policy_gen.rs`. The
+  implementation as a whole was not read. Whether the code matches the documentation was checked only
+  at the points the run touched — and at two of them it did not (Embodiment, last paragraph).
 
-- **182 ADR files under `docs/adrs/` (159 unique numbers — 14 numbers are reused across 2 files each,
-  for 22 duplicate files in total; highest number 0165, with 0156 and 0160–0164 absent) were not read
-  individually.** An earlier draft of this spec stated "165 ADRs,"
-  mistaking the highest ADR *number* for a file *count* — caught by fidelity review, corrected here.
-  Only filenames were scanned from the repository tree to confirm nothing load-bearing was missed at the
-  top level. Any single ADR could sharpen, qualify, or contradict a claim synthesized here from
+- **188 entries under `docs/adrs/` at `ff0774f` — 186 numbered files plus `TEMPLATE.md` and a `gaps/`
+  directory; 164 unique numbers; 14 numbers carry more than one file; highest 0173 — were not read
+  individually.** Counted with `git ls-tree` on a clone, the same method applied to the old pin (182
+  entries, 180 numbered, 159 unique, highest 0165), so the two figures are comparable; the earlier
+  "14 numbers reused for 22 duplicate files" phrasing was wrong by this method (13 numbers, 21 extra
+  files at the old pin) — a third count error in this spec's history, recorded as such. Six files were added between the pins: `0157-journaled-field-updates.md` (a
+  second file under an already-used number), `0160`, `0164`, `0166`, `0172`, `0173`. Of these, 0157,
+  0172, and 0173 were read in their Context and Decision sections for this re-pin, because each bore
+  on a claim in the body; 0160, 0164, and 0166 by title and opening lines only. An earlier draft of
+  this spec stated "165 ADRs," mistaking the highest number for a file count — caught by fidelity
+  review. Any single unread ADR could sharpen, qualify, or contradict a claim synthesized here from
   `PAPER.md` — the same category of risk exo's spec flagged for its own unread design-note files, at
-  much larger scale.
+  much larger scale, and the PATCH/PUT finding below is one instance of exactly that risk landing.
 
 - **`docs/HARNESS.md` describes Temper's own development harness — the dev-time hooks and gates for
   people building Temper itself — not what an agent gets when building *on* Temper.** ~200 of 610 lines
@@ -414,14 +502,31 @@ is met.
   benchmarks but no cascade-total-time measurement and no deployment-uptime data. Quoted and attributed
   above as the project's own self-description; not treated as independently verified.
 
-- **No hands-on run.** `embodiment: none` reflects this exactly — see Embodiment above for what
-  evidentiary standing the project's own disclosed benchmarks do and don't provide in place of one.
+- **The hands-on run is partial, and single-configuration.** `embodiment: partial` reflects one
+  reference app, one tenant, one principal, the default store, and the in-process actor runtime, at one
+  commit, on one laptop. Embodiment lists what was and was not exercised. The project's own disclosed
+  benchmarks (Criterion hot-path figures, the 22 named DST tests, the two determinism proofs) were
+  not reproduced and remain the project's reported results.
+
+- **Auth model not covered.** Upstream ARN-170 (merged 2026-08-13 US time, 08-14 UTC, before the original pin) replaced
+  header-asserted identity with a credential-bound request context, and ARN-255 (after the original
+  pin) added trusted-issuer JWT verification. This spec describes neither beyond what the run touched:
+  a bootstrap operator credential in the `default` tenant, a tenant header, and fail-closed 401/403.
+  How an agent obtains a credential in a non-default tenant, the JWT path, and the internal-invocation
+  capability were not read. The WASM guest-isolation fixes between the pins (ARN-208/226/243, ADRs
+  0164 and 0166) were not evaluated; the Sandboxing paragraph in Boundaries still rests on the
+  documents alone.
 
 - **`lifecycle: version-changing`** on the project's own statement that *"the API surface is not
   frozen"* at 0.1.0, with an explicit "cannot do this yet" list the project expects to shrink. A spec
-  written against `2f43ece` should be assumed to drift, plausibly faster than exo's given the number of
-  documents (268 `.md` files in the tree at the pinned commit, 182 of them under `docs/adrs/`)
-  actively tracking design decisions in this repository.
+  first written against `2f43ece` and re-pinned to `ff0774f` on 2026-09-02 should be assumed to keep
+  drifting, plausibly faster than exo's given the number of documents (275 `.md` files in the tree at
+  `ff0774f`, up from 268; 188 entries under `docs/adrs/`, up from 182) actively tracking design
+  decisions in this repository. Between the two pins the five documents this body quotes did not
+  change by a byte (`git diff 2f43ece ff0774f -- README.md docs/PAPER.md docs/POSITIONING.md
+  docs/AGENT_GUIDE.md docs/HARNESS.md` on a clone returned nothing), so the quotes were carried
+  forward rather than re-verified one by one. That byte-identity check is the claim the fidelity review
+  must independently repeat (zygos ADR-0003).
 
 - **Compared to exo, once, by me — not adjudicated by a third source.** The prevention-vs-recovery
   contrast and the "same artifact serves two roles" parallel to "the log is the program" are this
@@ -462,19 +567,52 @@ is met.
   section rewritten to fix the prior count error is itself evidence that count-claims need independent
   re-verification each time, not just once.
 
+- **Re-pinned 2026-09-02, `2f43ece` → `ff0774f`, 18 upstream commits, and the pin moved more than the
+  prose.** No quote drifted (see the lifecycle bullet). Five claims changed on the strength of what was
+  new upstream or what the run showed: (1) the Boundaries journal row now carries the PATCH/PUT caveat
+  from upstream ADR-0157 — at the original pin this spec asserted a durability property for all writes
+  that the documents only ever stated for transitions, and the table's "yes" was an inference, not a
+  source; (2) Which axis counts three recovery points, not two, after ADR-0173; (3) the same section
+  records the self-approval ban from ADR-0172; (4) Loop and Verification strategy no longer say the
+  serve command rejects unverified specs at startup — the gate is per dispatch, and a failing spec
+  loads and then blocks; (5) the Boundaries table gained two rows (pending decisions, registered specs)
+  and observed evidence on two others. Embodiment moved from `none` to `partial`. The method lesson is
+  the first item: a state-inventory row needs its own source or observation, and this spec's original
+  table had one row that had neither. Carried into `docs/research/SKILL.md` §6.
+
+- **The re-pin's own fidelity review (PR #10) caught a load-bearing error in the new material.** The
+  first version of the "registered specs" Boundaries row explained the restart loss by quoting a code
+  comment in `load_dir.rs` — *"Persist loaded specs first when Postgres is configured"* — that the
+  function beneath it contradicts (it writes to the embedded store too, uncommitted). The real cause
+  is in the restart log the author had already saved and not read to line three. A verbatim quote from
+  a primary source was still wrong about the thing, because the source was a comment about code, not
+  the code: the name-vs-thing trap, inside the repository itself. Also corrected: the ADR-0157 date
+  (header vs landing commit), the evidence line for disk-loaded spec survival, and the client-versus-
+  log provenance of Embodiment rows 1–2.
+
 ## Sources
 
-All fetched as raw markdown pinned to commit `2f43ecefaa00bf2e9d75c6b67c2ddf8857821400`, not to `main`
-— a branch ref changes content silently and still resolves, so a link check cannot catch drift.
+Originally fetched as raw markdown pinned to commit `2f43ecefaa00bf2e9d75c6b67c2ddf8857821400`
+(2026-08-16), never to `main` — a branch ref changes content silently and still resolves, so a link
+check cannot catch drift. Re-pinned to `ff0774f572197a75987f3329b48553ae9f8b3c29` on 2026-09-02 after
+`git diff 2f43ece ff0774f -- README.md docs/PAPER.md docs/POSITIONING.md docs/AGENT_GUIDE.md
+docs/HARNESS.md` on a clone returned empty; the five links below now point at the new pin and resolve
+to the same bytes the original pass read. The rows after them are new to the re-pin.
 
 | Source | Type | Retrieved |
 |---|---|---|
-| [`README.md`](https://github.com/nerdsane/temper/blob/2f43ecefaa00bf2e9d75c6b67c2ddf8857821400/README.md) | primary — project self-description, full read | 2026-08-16 |
-| [`docs/PAPER.md`](https://github.com/nerdsane/temper/blob/2f43ecefaa00bf2e9d75c6b67c2ddf8857821400/docs/PAPER.md) | primary — full architecture paper, full read (all 12 sections) | 2026-08-16 |
-| [`docs/POSITIONING.md`](https://github.com/nerdsane/temper/blob/2f43ecefaa00bf2e9d75c6b67c2ddf8857821400/docs/POSITIONING.md) | primary — positioning statement, full read | 2026-08-16 |
-| [`docs/AGENT_GUIDE.md`](https://github.com/nerdsane/temper/blob/2f43ecefaa00bf2e9d75c6b67c2ddf8857821400/docs/AGENT_GUIDE.md) | primary — §1 Core Concepts, §8 Observability, §12 JIT Optimization, §16 Anti-Patterns read (§8 and §12 added after fidelity review; remainder scanned by heading only) | 2026-08-16 |
-| [`docs/HARNESS.md`](https://github.com/nerdsane/temper/blob/2f43ecefaa00bf2e9d75c6b67c2ddf8857821400/docs/HARNESS.md) | primary — first ~200 of 610 lines read; this is Temper's own dev-time harness, not the product's agent-facing surface — see Limits | 2026-08-16 |
-| Repository tree at `2f43ece` (GitHub API, recursive) | primary — used to enumerate docs and confirm the ADR file count (182 files, 159 unique numbers); ADR bodies not read | 2026-08-16 |
+| [`README.md`](https://github.com/nerdsane/temper/blob/ff0774f572197a75987f3329b48553ae9f8b3c29/README.md) | primary — project self-description, full read | 2026-08-16 |
+| [`docs/PAPER.md`](https://github.com/nerdsane/temper/blob/ff0774f572197a75987f3329b48553ae9f8b3c29/docs/PAPER.md) | primary — full architecture paper, full read (all 12 sections) | 2026-08-16 |
+| [`docs/POSITIONING.md`](https://github.com/nerdsane/temper/blob/ff0774f572197a75987f3329b48553ae9f8b3c29/docs/POSITIONING.md) | primary — positioning statement, full read | 2026-08-16 |
+| [`docs/AGENT_GUIDE.md`](https://github.com/nerdsane/temper/blob/ff0774f572197a75987f3329b48553ae9f8b3c29/docs/AGENT_GUIDE.md) | primary — §1 Core Concepts, §8 Observability, §12 JIT Optimization, §16 Anti-Patterns read (§8 and §12 added after fidelity review; remainder scanned by heading only) | 2026-08-16 |
+| [`docs/HARNESS.md`](https://github.com/nerdsane/temper/blob/ff0774f572197a75987f3329b48553ae9f8b3c29/docs/HARNESS.md) | primary — first ~200 of 610 lines read; this is Temper's own dev-time harness, not the product's agent-facing surface — see Limits | 2026-08-16 |
+| Repository tree at `2f43ece` (GitHub API, recursive) | primary — used to enumerate docs and confirm the ADR file count at the original pin; ADR bodies not read | 2026-08-16 |
+| Repository tree at `ff0774f` (`git ls-tree` on a clone) | primary — recount of `docs/adrs/` and `.md` totals with a stated method, applied to both pins; commit log `2f43ece..ff0774f` (18 commits) read by subject line | 2026-09-02 |
+| [`docs/adrs/0157-journaled-field-updates.md`](https://github.com/nerdsane/temper/blob/ff0774f572197a75987f3329b48553ae9f8b3c29/docs/adrs/0157-journaled-field-updates.md), [`0172-operator-bootstrap-manage-policies.md`](https://github.com/nerdsane/temper/blob/ff0774f572197a75987f3329b48553ae9f8b3c29/docs/adrs/0172-operator-bootstrap-manage-policies.md), [`0173-genesis-install-verified-or-reverted.md`](https://github.com/nerdsane/temper/blob/ff0774f572197a75987f3329b48553ae9f8b3c29/docs/adrs/0173-genesis-install-verified-or-reverted.md) | primary — Context and Decision sections read; each is quoted above | 2026-09-02 |
+| `docs/adrs/0160`, `0164`, `0166` (RUSTSEC cleanup; WASM guest read bounds; per-tenant LLM-content redaction) | primary — title and opening lines only; cited as existing, not as read | 2026-09-02 |
+| [`.agents/skills/verify-temper/SKILL.md`](https://github.com/nerdsane/temper/blob/ff0774f572197a75987f3329b48553ae9f8b3c29/.agents/skills/verify-temper/SKILL.md) and `features/` — `serve-and-odata.md`, `entity-lifecycle.md`, `cedar-authz.md`, `spec-cascade.md`, `spec-hot-swap.md`, `event-sourcing-readback.md` (full), `dst-proof.md` (first 25 lines) | primary — the project's own end-to-end verification recipes at this pin; used to drive the run and quoted in Verification strategy and Embodiment. The project's own findings against itself (ARN-442, the unwired L2b level) are attributed to it, not claimed as this spec's | 2026-09-02 |
+| Implementation files listed in the first Limits bullet | primary — read in part, only to explain an observation from the run | 2026-09-02 |
+| Local build and run at `ff0774f` (`cargo build -p temper-cli`; `temper serve --storage turso`, one reference app, one tenant) | primary — this spec's own observations; commands and responses in Embodiment | 2026-09-02 |
 
 **Cross-reference:** `docs/research/harnesses/exo.md` in this repository, read in full before this
 spec was written, for every comparison drawn above.
