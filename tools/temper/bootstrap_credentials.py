@@ -15,7 +15,7 @@ Sequence (Temper ff0774f, crates/temper-platform/tests/identity_e2e.rs:611-722):
      (out of the box it holds only manage_policies — ADR-0172)
   1. POST /tdata/AgentTypes {id}; POST .../Temper.Agent.Define {name,...}
   2. POST /tdata/AgentCredentials {id: sha256(key)}; POST .../Temper.Agent.Issue {...}
-  3. POST /api/identity/resolve {bearer_token} -> agent_type_name must match
+  3. POST /api/identity/resolve {bearer_token} (as operator) -> agent_type_name must match
 """
 
 import hashlib
@@ -155,7 +155,9 @@ def ensure_credential(type_id, instance_id, plaintext, env_var):
 
 
 def verify(plaintext, expected_name, env_var):
-    status, payload = request("POST", "/api/identity/resolve", {"bearer_token": plaintext})
+    # The kernel serves this route unauthenticated, but TemperPaw's outer auth layer gates
+    # everything except /healthz, so the call is made with the operator key.
+    status, payload = request("POST", "/api/identity/resolve", {"bearer_token": plaintext}, key=OPERATOR)
     must(status, (200,), f"resolve {env_var}", payload)
     got = payload.get("agent_type_name")
     if got != expected_name or payload.get("verified") is not True:

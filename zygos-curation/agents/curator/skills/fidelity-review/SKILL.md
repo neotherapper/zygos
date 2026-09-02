@@ -13,10 +13,11 @@ name `Zygos.<Action>` against the entity's base URL, e.g.
 `POST /tdata/HarnessSpecs('<spec_id>')/Zygos.RecordFidelityReview`. The two platform rules from the
 Phase 1 findings (temperpaw-findings.md §21) that govern the write-back calls:
 
-- **Param keys must exactly match the CSDL parameter names** (`Passed`, `Findings`, `Reason`). The
+- **Param keys must exactly match the CSDL parameter names** (`FidelityFindings`, `Reason`). The
   `RecordFidelityReview` action is split into `RecordFidelityReviewPassed` / `RecordFidelityReviewFailed`
-  on the platform (no parametric `set_bool` effect), so dispatch the one matching the verdict — `Passed`
-  is a boolean, `Findings` is a string with one finding per line, `Reason` is a short string.
+  on the platform (no parametric `set_bool` effect), so dispatch the one matching the verdict — the verdict
+  is the action name, `FidelityFindings` is a string with one finding per line, `Reason` is a short string
+  (`zygos-commons/specs/model.csdl.xml`, verified live 2026-09-02).
 - **Bound actions need a credential-resolved principal, and which key you hold decides what you may do.**
   Send `Authorization: Bearer <key>` plus `X-Tenant-Id: default` and nothing else — the kernel strips every
   `X-Temper-*` header at its edge (Temper ARN-170), so a self-declared principal kind or agent type is
@@ -47,9 +48,9 @@ Phase 1 findings (temperpaw-findings.md §21) that govern the write-back calls:
    `Findings`:
 
 ```bash
-# POST /tdata/HarnessSpecs('<spec_id>')/Zygos.RecordFidelityReviewPassed  body: {"Passed": true, "Findings": "<one finding per line: location, claim as written, what the source says, why it matters>"} (key: $ZYGOS_REVIEWER_KEY)
+# POST /tdata/HarnessSpecs('<spec_id>')/Zygos.RecordFidelityReviewPassed  body: {"FidelityFindings": "<one finding per line: location, claim as written, what the source says, why it matters>"} (key: $ZYGOS_REVIEWER_KEY)
 # or
-# POST /tdata/HarnessSpecs('<spec_id>')/Zygos.RecordFidelityReviewFailed  body: {"Passed": false, "Findings": "<same, one finding per line>"} (key: $ZYGOS_REVIEWER_KEY)
+# POST /tdata/HarnessSpecs('<spec_id>')/Zygos.RecordFidelityReviewFailed  body: {"FidelityFindings": "<same, one finding per line>"} (key: $ZYGOS_REVIEWER_KEY)
 ```
 
 5. Post the findings as a PR comment on the branch's PR, whatever the verdict — per
