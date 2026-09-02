@@ -5,15 +5,18 @@ backfill_write.py — drive a parsed HarnessSpec through the write actions.
 Reads a parser-produced JSON (PascalCase entity property keys) and POSTs each
 bound action for the given entity via the local Temper OData surface. Order and
 params per zygos-commons/specs/model.csdl.xml. Exits non-zero on any non-200.
+Auth: Bearer $ZYGOS_KEY + X-Tenant-Id only — identity comes from the credential (Temper ARN-170), never from headers.
 """
 
 import json
 import os
 import sys
+import urllib.error
 import urllib.request
 
 BASE = os.environ.get("ZYGOS_BASE", "http://127.0.0.1:3467")
 KEY = os.environ.get("ZYGOS_KEY")
+TENANT = os.environ.get("ZYGOS_TENANT", "default")
 
 # action -> params it consumes from the parsed payload
 # (params that are not in the payload are omitted)
@@ -36,32 +39,26 @@ ACTION_PARAMS = [
 ]
 
 
-def post(url, body, principal="agent", agent_type=None):
+def post(url, body):
     headers = {
         "Authorization": f"Bearer {KEY}",
-        "X-Temper-Principal-Kind": principal,
-        "X-Tenant-Id": "default",
+        "X-Tenant-Id": TENANT,
         "Content-Type": "application/json",
     }
-    if agent_type:
-        headers["X-Temper-Agent-Type"] = agent_type
     req = urllib.request.Request(url, data=json.dumps(body).encode("utf-8"),
                                  headers=headers, method="POST")
     try:
         with urllib.request.urlopen(req) as resp:
             return resp.status, json.load(resp)
     except urllib.error.HTTPError as e:
-        return e.code, e.read().decode() if e.read else str(e)
+        return e.code, e.read().decode("utf-8", "replace")
 
 
 def main():
     if len(sys.argv) < 3:
-        print("usage: backfill_write.py <parsed.json> <entity_id> [--principal-kind <kind>]", file=sys.stderr)
+        print("usage: backfill_write.py <parsed.json> <entity_id>", file=sys.stderr)
         sys.exit(2)
     parsed_path, entity_id = sys.argv[1], sys.argv[2]
-    principal = "agent"
-    if "--principal-kind" in sys.argv:
-        principal = sys.argv[sys.argv.index("--principal-kind") + 1]
     if not KEY:
         print("ZYGOS_KEY env not set", file=sys.stderr)
         sys.exit(2)
@@ -71,7 +68,7 @@ def main():
     for action, params in ACTION_PARAMS:
         body = {p: parsed[p] for p in params if p in parsed}
         url = f"{BASE}/tdata/HarnessSpecs('{entity_id}')/Zygos.{action}"
-        status, resp = post(url, body, principal=principal)
+        status, resp = post(url, body)
         flag = "ok" if status in (200, 201) else "FAIL"
         print(f"[{flag}] {action} HTTP {status}")
         if status not in (200, 201):
