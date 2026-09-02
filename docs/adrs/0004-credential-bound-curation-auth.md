@@ -36,22 +36,29 @@ clients fail in three concrete, observed ways:
    `agent_type == "operator"`, whatever the caller claims. Every `RecordFidelityReview*`,
    `ReviseDraft`, and `Publish` call is Cedar-denied, and the denial is recorded as a pending decision
    that the same key cannot approve, because the kernel forbids self-approval (Temper ADR-0172).
-   Confirmed live against kernel `ff0774f` on 2026-09-02.
+   Observed live against kernel `ff0774f` on 2026-09-02; the run is recorded in
+   `docs/research/harnesses/temper.md`, Embodiment table rows 15 and 16.
 
-2. **`principal is Admin` is unreachable over HTTP, so the old publish gate locks itself out.** The
-   `Admin` principal is constructed only in-process (`temper-server/src/admin/mod.rs`, `api/repl.rs`)
-   and never from a Bearer token or a JWT. Rewriting the clients would not help: the `Admin`-gated
-   `Publish`, `Revise`, and `Archive` rules would deny every HTTP caller, permanently.
+2. **No credential resolves to `Admin`, so the old publish gate locks itself out.** The kernel
+   constructs the `Admin` principal only in-process (`temper-server/src/admin/mod.rs`, `api/repl.rs`),
+   never from a Bearer token or a JWT. TemperPaw's own middleware does build `Admin` contexts over HTTP,
+   from a dashboard session cookie and from a bare `x-temper-principal-kind: admin` header
+   (`crates/temperpaw/src/auth.rs`), but the kernel's bearer edge never reads that injected context and
+   answers 401 (`crates/temper-platform/src/bearer_auth.rs`), so neither reaches Cedar. Rewriting the
+   clients would not help: the `Admin`-gated `Publish`, `Revise`, and `Archive` rules would deny every
+   HTTP caller, permanently.
 
 3. **The old model never gave separation of duties anyway.** One key self-declared every role by
    changing a header; nothing prevented the drafting key from passing its own review and publishing.
 
-The kernel facts that shape the fix, verified by reading source at `ff0774f` (`43f9379c` differs only
-by five CI/docs commits): a Cedar principal resolved from an `AgentCredential` carries
+The kernel facts that shape the fix, verified by reading source at `ff0774f` (`43f9379c` differs by
+five commits, none touching identity or authorization): a Cedar principal resolved from an `AgentCredential` carries
 `principal.agent_type` equal to its `AgentType`'s `name` field and `principal.agentTypeVerified == true`;
 a credential's entity id must equal the lowercase hex SHA-256 of the plaintext key; the operator key
-holds only `manage_policies` on `PolicySet::"default"` out of the box; and the kernel installs an app's
-Cedar from `<app>/policies/*.cedar` only, which makes `zygos-commons/specs/policies/harness_spec.cedar`
+holds `manage_policies` on `PolicySet::"default"` out of the box (plus the kernel's built-in operator
+access to `TrustedIssuer` and `PrincipalGeneration`) and nothing on `AgentType` or `AgentCredential`;
+and the kernel installs an app's Cedar from `<app>/policies/*.cedar` (and `policies/commons/` in
+commons mode), never from `specs/policies/`, which makes `zygos-commons/specs/policies/harness_spec.cedar`
 a dead duplicate.
 
 ## Decision
@@ -59,9 +66,9 @@ a dead duplicate.
 **Authority is resolved from the credential by the kernel, never declared by the caller.** The curation
 pipeline holds three keys, each an `AgentCredential` whose agent type decides what Cedar permits:
 
-| Key | Holder | Grants (per `zygos-commons/policies/harness_spec.cedar`) |
+| Key | Holder | Grants |
 |---|---|---|
-| `ZYGOS_KEY` | operator (== server `TEMPER_API_KEY`) | create/read/list, all Draft section writes, `SubmitForReview`, policy management |
+| `ZYGOS_KEY` | operator (== server `TEMPER_API_KEY`) | create/read/list, all Draft section writes, `SubmitForReview` (`harness_spec.cedar`); `manage_policies` (kernel seed, Temper ADR-0172); define agent types, issue and revoke credentials (the bootstrap permit below) |
 | `ZYGOS_REVIEWER_KEY` | fidelity-review skill | `RecordFidelityReviewPassed/Failed`, `ReviseDraft` (UnderReview only) |
 | `ZYGOS_PUBLISHER_KEY` | whoever publishes | `Publish` (UnderReview), `Revise` (Published), `Archive` |
 
@@ -71,9 +78,11 @@ Concretely:
   database as the operator, defines `AgentType`s `zygos-reviewer-type` (name `reviewer`) and
   `zygos-publisher-type` (name `publisher`) and issues one `AgentCredential` for each, keyed by the
   SHA-256 of a plaintext the caller supplies or the script generates and prints once. Because the
-  operator key holds only `manage_policies` out of the box, the script first installs a Cedar permit
-  (`zygos-operator-identity-admin`) granting `Agent::"operator"` create/read/list/`Define` on
-  `AgentType` and create/read/list/`Issue`/`Revoke` on `AgentCredential`. It verifies each new key
+  operator key holds nothing on `AgentType` or `AgentCredential` out of the box, the script first
+  installs a Cedar permit (`zygos-operator-identity-admin`) granting create/read/list/`Define` on
+  `AgentType` and create/read/list/`Issue`/`Revoke` on `AgentCredential` to a principal whose
+  `agent_type == "operator"` and `agentTypeVerified == true`, the same shape as the kernel's own seeded
+  operator permit; a self-declared `Agent::"operator"` without the flag gets nothing. It verifies each new key
   through `POST /api/identity/resolve` and is idempotent.
 - **Every `HarnessSpec` permit requires `agentTypeVerified`.** The rewritten policy file binds each
   rule to `principal is Agent` plus `principal.agentTypeVerified == true`; the review rules add
@@ -131,8 +140,8 @@ restart on the new binary, the bootstrap run, the policy-reload check, and the e
 ## Alternatives considered
 
 - **TemperPaw cookie login, resolving to `Admin`.** Would keep the `Admin`-gated rules as written.
-  Rejected: script-hostile for the two write-back clients, and whether the kernel accepts a tokenless
-  injected context that way was not verified, so the publish path would rest on an unconfirmed assumption.
+  Rejected: script-hostile for the two write-back clients, and the kernel's bearer edge rejects a tokenless injected
+  context with 401 (`bearer_auth.rs`, verified from source), so the cookie never reaches Cedar at all.
 - **Trusted-issuer JWT (option D1 in the TemperPaw migration plan).** Mint a token per role from a
   trusted issuer. Rejected for now: the environment variable names are undocumented and there is no
   minting route to call, so it could not be exercised end to end.

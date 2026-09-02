@@ -9,9 +9,9 @@ repo; every script reads them from the shell.
 
 Environment (see `docs/adrs/0004-credential-bound-curation-auth.md` for why there are three keys):
 
-| Variable | Holder | Grants (per `zygos-commons/policies/harness_spec.cedar`) |
+| Variable | Holder | Grants |
 |---|---|---|
-| `ZYGOS_KEY` | operator (== server `TEMPER_API_KEY`) | create/read/list, all Draft section writes, `SubmitForReview`, policy management |
+| `ZYGOS_KEY` | operator (== server `TEMPER_API_KEY`) | create/read/list, all Draft section writes, `SubmitForReview` (`zygos-commons/policies/harness_spec.cedar`); `manage_policies` (kernel seed); define agent types, issue/revoke credentials (permit installed by the script) |
 | `ZYGOS_REVIEWER_KEY` | fidelity-review skill | `RecordFidelityReviewPassed/Failed`, `ReviseDraft` (UnderReview only) |
 | `ZYGOS_PUBLISHER_KEY` | whoever publishes | `Publish` (UnderReview), `Revise` (Published), `Archive` |
 

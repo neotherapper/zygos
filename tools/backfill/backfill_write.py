@@ -49,9 +49,13 @@ def post(url, body):
                                  headers=headers, method="POST")
     try:
         with urllib.request.urlopen(req) as resp:
-            return resp.status, json.load(resp)
+            raw = resp.read().decode("utf-8")
+            return resp.status, (json.loads(raw) if raw else {})
     except urllib.error.HTTPError as e:
         return e.code, e.read().decode("utf-8", "replace")
+    except urllib.error.URLError as e:
+        print(f"cannot reach {BASE}: {e.reason}", file=sys.stderr)
+        sys.exit(1)
 
 
 def main():

@@ -1,10 +1,11 @@
 // zygos-commons — HarnessSpec Authorization Policies
 //
-// Credential-bound model (Temper ARN-170 / ADR-0157, zygos ADR-0004): every HTTP
-// caller is an Agent principal resolved from an AgentCredential. Authority comes
-// from the credential's AgentType name (`principal.agent_type`) — never from a
-// header the caller declares. `principal is Admin` is unreachable over HTTP on
-// this kernel, so the publish gate is the `publisher` agent type, not Admin.
+// Credential-bound model (Temper ARN-170, "Credential-Bound Class A Authentication
+// Edge"; zygos ADR-0004): every HTTP caller is an Agent principal resolved from an
+// AgentCredential. Authority comes from the credential's AgentType name
+// (`principal.agent_type`) — never from a header the caller declares. No credential
+// resolves to Admin on this kernel, so the publish gate is the `publisher` agent
+// type, not Admin.
 // `agentTypeVerified` is set only on credential-resolved principals; requiring
 // it defeats TemperPaw's header-only loopback branch (unverified principals).
 //

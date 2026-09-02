@@ -10,7 +10,7 @@ Run once per server database, as the operator (ZYGOS_KEY == TEMPER_API_KEY). Ide
   ZYGOS_REVIEWER_KEY    plaintext reviewer key    (generated + printed if unset)
   ZYGOS_PUBLISHER_KEY   plaintext publisher key   (generated + printed if unset)
 
-Sequence (Temper ff0774f, crates/temper-platform/tests/identity_e2e.rs:614-720):
+Sequence (Temper ff0774f, crates/temper-platform/tests/identity_e2e.rs:611-722):
   0. operator grants itself create/Define/Issue/Revoke on AgentType/AgentCredential
      (out of the box it holds only manage_policies — ADR-0172)
   1. POST /tdata/AgentTypes {id}; POST .../Temper.Agent.Define {name,...}
@@ -37,8 +37,14 @@ AGENT_TYPES = [
 ]
 
 OPERATOR_IDENTITY_POLICY_ID = "zygos-operator-identity-admin"
+# Same shape as the kernel's seeded operator permit (VERIFIED_OPERATOR_WHEN): bound to the
+# credential-resolved agent type, never to a self-declared principal id.
+OPERATOR_WHEN = (
+    'principal has agent_type && principal.agent_type == "operator" && '
+    'principal has agentTypeVerified && principal.agentTypeVerified == true'
+)
 OPERATOR_IDENTITY_POLICY = "\n".join(
-    f'permit(principal == Agent::"operator", action == Action::"{action}", resource is {rtype});'
+    f'permit(principal is Agent, action == Action::"{action}", resource is {rtype}) when {{ {OPERATOR_WHEN} }};'
     for rtype, actions in (
         ("AgentType", ["create", "read", "list", "Define"]),
         ("AgentCredential", ["create", "read", "list", "Issue", "Revoke"]),
@@ -63,6 +69,9 @@ def request(method, path, body=None, key=None):
             return e.code, json.loads(raw)
         except ValueError:
             return e.code, raw
+    except urllib.error.URLError as e:
+        print(f"[FAIL] {method} {path}: cannot reach {BASE} ({e.reason})", file=sys.stderr)
+        sys.exit(1)
 
 
 def must(status, ok, what, payload):
@@ -79,8 +88,8 @@ def sha256_hex(text):
 def ensure_operator_policy():
     status, listing = request("GET", f"/api/tenants/{TENANT}/policies/list", key=OPERATOR)
     must(status, (200,), "list policies as operator", listing)
-    existing = json.dumps(listing)
-    if OPERATOR_IDENTITY_POLICY_ID in existing:
+    policies = listing.get("policies", []) if isinstance(listing, dict) else []
+    if any(p.get("policy_id") == OPERATOR_IDENTITY_POLICY_ID for p in policies):
         print(f"[skip] policy {OPERATOR_IDENTITY_POLICY_ID} already present")
         return
     status, payload = request(
@@ -118,9 +127,14 @@ def ensure_agent_type(type_id, name):
 def ensure_credential(type_id, instance_id, plaintext, env_var):
     key_hash = sha256_hex(plaintext)
     status, payload = request("GET", f"/tdata/AgentCredentials('{key_hash}')", key=OPERATOR)
-    if status == 200 and payload.get("status") == "Active":
-        print(f"[skip] AgentCredential for {env_var} already Active")
-        return
+    if status == 200:
+        # AgentCredential starts Active before Issue, so "Active" alone is not proof of a
+        # completed issue; only an entity whose key_hash field is set is done. Issue is legal
+        # from Active, so a half-finished run is repaired by re-issuing.
+        fields = payload.get("fields", payload) if isinstance(payload, dict) else {}
+        if payload.get("status") == "Active" and fields.get("key_hash") == key_hash:
+            print(f"[skip] AgentCredential for {env_var} already issued")
+            return
     if status == 404:
         status, payload = request("POST", "/tdata/AgentCredentials", {"id": key_hash}, key=OPERATOR)
         must(status, (200, 201), f"create AgentCredential for {env_var}", payload)

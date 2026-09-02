@@ -108,7 +108,7 @@ The three credentials the curation pipeline holds against the local TemperPaw, e
 manages policies, the reviewer key records fidelity reviews, the publisher key publishes and
 archives. Authority is resolved from the credential by the kernel, never declared by the caller.
 Rationale and the full grant table: `docs/adrs/0004`, `tools/temper/README.md`.
-_Avoid_: "admin key" or "the API key" — there is no admin principal over HTTP, and "the" key hides which of the three is meant.
+_Avoid_: "admin key" or "the API key" — no credential resolves to an admin principal, and "the" key hides which of the three is meant.
 
 **target list**:
 The table in `docs/research/README.md` — one row per harness, `kind`, a pinned commit SHA, and a status
