@@ -1,18 +1,28 @@
 // zygos-commons — HarnessSpec Authorization Policies
 //
-// Human-in-the-loop model: the curator drafts, the reviewer runs the fidelity
-// review, and only an Admin publishes, revises, or archives.
-// Action names are the exact IOA action names (PascalCase), matching the
-// platform convention; resource attributes use the CSDL property names.
+// Credential-bound model (Temper ARN-170, "Credential-Bound Class A Authentication
+// Edge"; zygos ADR-0004): every HTTP caller is an Agent principal resolved from an
+// AgentCredential. Authority comes from the credential's AgentType name
+// (`principal.agent_type`) — never from a header the caller declares. No credential
+// resolves to Admin on this kernel, so the publish gate is the `publisher` agent
+// type, not Admin.
+// `agentTypeVerified` is set only on credential-resolved principals; requiring
+// it defeats TemperPaw's header-only loopback branch (unverified principals).
+//
+// Action names are the exact IOA action names (PascalCase); resource attributes
+// use the CSDL property names.
 
-// Any authenticated principal can create, read, and list HarnessSpecs
+// Any credential-resolved principal can create, read, and list HarnessSpecs
 permit(
-    principal,
+    principal is Agent,
     action in [Action::"create", Action::"read", Action::"list"],
     resource is HarnessSpec
-);
+) when {
+    principal has agentTypeVerified && principal.agentTypeVerified == true
+};
 
-// The curator writes all sections and submits for review, while in Draft
+// The curator (any verified agent credential, including the operator key) writes
+// all sections and submits for review, while in Draft
 permit(
     principal is Agent,
     action in [
@@ -34,54 +44,62 @@ permit(
     ],
     resource is HarnessSpec
 ) when {
-    resource.Status == "Draft"
+    resource.Status == "Draft" &&
+    principal has agentTypeVerified && principal.agentTypeVerified == true
 };
 
-// The reviewer (or a system agent) records the fidelity review, while in UnderReview
+// The reviewer credential records the fidelity review, while in UnderReview
 permit(
     principal is Agent,
     action in [Action::"RecordFidelityReviewPassed", Action::"RecordFidelityReviewFailed"],
     resource is HarnessSpec
 ) when {
     resource.Status == "UnderReview" &&
-    (principal.agent_type == "reviewer" || principal.agent_type == "system")
+    principal has agent_type && principal.agent_type == "reviewer" &&
+    principal has agentTypeVerified && principal.agentTypeVerified == true
 };
 
-// The reviewer sends a spec back to Draft, while in UnderReview
+// The reviewer credential sends a spec back to Draft, while in UnderReview
 permit(
     principal is Agent,
     action == Action::"ReviseDraft",
     resource is HarnessSpec
 ) when {
     resource.Status == "UnderReview" &&
-    (principal.agent_type == "reviewer" || principal.agent_type == "system")
+    principal has agent_type && principal.agent_type == "reviewer" &&
+    principal has agentTypeVerified && principal.agentTypeVerified == true
 };
 
-// Only an Admin publishes. Fidelity enforcement lives in the IOA guard
-// (`Publish` requires `is_true fidelity_review_passed`) plus the
-// `PublishRequiresFidelityReview` invariant — Cedar sees only entity fields,
-// not automaton state booleans, so fidelity cannot be evaluated reliably here
-// (platform limitation; see temperpaw-findings.md §19).
+// Only the publisher credential publishes. Fidelity enforcement lives in the IOA
+// guard (`Publish` requires `is_true fidelity_review_passed`) plus the
+// `PublishRequiresFidelityReview` invariant — Cedar sees only entity fields.
 permit(
-    principal is Admin,
+    principal is Agent,
     action == Action::"Publish",
     resource is HarnessSpec
 ) when {
-    resource.Status == "UnderReview"
+    resource.Status == "UnderReview" &&
+    principal has agent_type && principal.agent_type == "publisher" &&
+    principal has agentTypeVerified && principal.agentTypeVerified == true
 };
 
-// An Admin can send a published spec back to UnderReview for a new fidelity pass
+// The publisher credential can send a published spec back to UnderReview
 permit(
-    principal is Admin,
+    principal is Agent,
     action == Action::"Revise",
     resource is HarnessSpec
 ) when {
-    resource.Status == "Published"
+    resource.Status == "Published" &&
+    principal has agent_type && principal.agent_type == "publisher" &&
+    principal has agentTypeVerified && principal.agentTypeVerified == true
 };
 
-// An Admin can archive any spec
+// The publisher credential can archive any spec
 permit(
-    principal is Admin,
+    principal is Agent,
     action == Action::"Archive",
     resource is HarnessSpec
-);
+) when {
+    principal has agent_type && principal.agent_type == "publisher" &&
+    principal has agentTypeVerified && principal.agentTypeVerified == true
+};

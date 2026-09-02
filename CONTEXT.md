@@ -102,6 +102,14 @@ Distinct from **fidelity review**, which checks the draft against its pinned sou
 the pinned sources against the world. Procedure in `docs/research/SKILL.md` §6.
 _Avoid_: "refresh" (sounds like a link check) and "update" (says nothing about what was re-read).
 
+**operator key** / **reviewer key** / **publisher key**:
+The three credentials the curation pipeline holds against the local TemperPaw, each an
+`AgentCredential` whose agent type decides what Cedar permits it: the operator key drafts and
+manages policies, the reviewer key records fidelity reviews, the publisher key publishes and
+archives. Authority is resolved from the credential by the kernel, never declared by the caller.
+Rationale and the full grant table: `docs/adrs/0004`, `tools/temper/README.md`.
+_Avoid_: "admin key" or "the API key" — no credential resolves to an admin principal, and "the" key hides which of the three is meant.
+
 **target list**:
 The table in `docs/research/README.md` — one row per harness, `kind`, a pinned commit SHA, and a status
 (`not-started` / `done` / `blocked`). A row is not a spec; it's the queue entry that becomes one.
