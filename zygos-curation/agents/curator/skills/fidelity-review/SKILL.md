@@ -24,7 +24,7 @@ Phase 1 findings (temperpaw-findings.md §21) that govern the write-back calls:
   silently ignored and the call 403s. Three keys, all read from the shell, none in the repo
   (`tools/temper/README.md`): `$ZYGOS_KEY` (operator) for `GET`s; `$ZYGOS_REVIEWER_KEY` for
   `RecordFidelityReviewPassed` / `RecordFidelityReviewFailed` / `ReviseDraft`; `$ZYGOS_PUBLISHER_KEY` for
-  `Publish` and `Archive`. In an agent shell, run `echo ${ZYGOS_REVIEWER_KEY:-missing}` — if `missing`, ask
+  `Publish` and `Archive`, held by a person and never by this skill (ADR-0005). In an agent shell, run `echo ${ZYGOS_REVIEWER_KEY:-missing}` — if `missing`, ask
   the human to export it (issued by `tools/temper/bootstrap_credentials.py`); do not invent a key or commit
   one. A 403 on a write is a Cedar denial recorded as a pending decision, not a transient error — report it.
 
@@ -48,7 +48,7 @@ Phase 1 findings (temperpaw-findings.md §21) that govern the write-back calls:
    `Findings`:
 
 ```bash
-# POST /tdata/HarnessSpecs('<spec_id>')/Zygos.RecordFidelityReviewPassed  body: {"FidelityFindings": "<one finding per line: location, claim as written, what the source says, why it matters>"} (key: $ZYGOS_REVIEWER_KEY)
+# POST /tdata/HarnessSpecs('<spec_id>')/Zygos.RecordFidelityReviewPassed  body: {"FidelityFindings": "reviewer: <tool>, <model>, <session id>\n<one finding per line: location, claim as written, what the source says, why it matters>"} (key: $ZYGOS_REVIEWER_KEY)
 # or
 # POST /tdata/HarnessSpecs('<spec_id>')/Zygos.RecordFidelityReviewFailed  body: {"FidelityFindings": "<same, one finding per line>"} (key: $ZYGOS_REVIEWER_KEY)
 ```
@@ -72,13 +72,17 @@ Report the findings; a human (or a second `synthesize-harness` pass, corrected) 
 sections via their `Write*` action while the entity is back in `Draft`, then calls `SubmitForReview`
 again and this skill re-runs.
 
-7. If the verdict is pass:
+7. If the verdict is pass, stop. Report the entity id and the findings and say that the entity is
+   `UnderReview` with `fidelity_review_passed: true`. Do not call `Publish`. The publisher seat is a
+   person holding `$ZYGOS_PUBLISHER_KEY` in their own shell (ADR-0005); if that key is present in
+   your environment, report it as a fault in key placement rather than using it.
 
 ```bash
+# The publisher runs this, by hand, after reading FidelityFindings:
 # POST /tdata/HarnessSpecs('<spec_id>')/Zygos.Publish  body {} (key: $ZYGOS_PUBLISHER_KEY)
 ```
 
-8. After `Publish` succeeds, render the markdown export. The mapping is fixed here, not left to
+8. After the publisher's `Publish` succeeds, render the markdown export. The mapping is fixed here, not left to
    whoever implements `render_harness_spec_markdown` to infer from property names — property names on
    `HarnessSpec` (Task 2) and the markdown shape they map to are not the same string:
 
