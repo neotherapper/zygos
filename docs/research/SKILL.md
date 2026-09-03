@@ -92,9 +92,10 @@ true — see `docs/adrs/0001-guards-check-presence-not-truth.md`. Before merging
 
 1. Open a PR from the research branch. Never merge a research branch without one — the PR body and its
    comments are the audit trail.
-2. Dispatch an independent agent — one that has not seen the draft being written, only the finished file
-   and the same pinned sources — to check three things, adversarially, with intent to refute rather than
-   confirm:
+2. Start an independent reviewer — a separate session that did not draft, not a subagent of the drafting
+   session, holding only `$ZYGOS_REVIEWER_KEY` (ADR-0005) — and give it nothing but the entity id, the
+   `fidelity-review` skill, and the same pinned sources. It checks three things, adversarially, with
+   intent to refute rather than confirm:
    - **Every direct quote** resolves against the actual source file, not a nearby file, and isn't
      truncated in a way that reverses its meaning.
    - **Every non-quoted factual claim** is re-checked against the relevant source section, not accepted
